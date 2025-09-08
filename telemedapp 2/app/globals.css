@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #f8fafc 100%);
+    min-height: 100vh;
+  }
+  
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-soft hover:shadow-medium focus:outline-none focus:ring-4 focus:ring-primary-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary-600 hover:bg-secondary-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-soft hover:shadow-medium focus:outline-none focus:ring-4 focus:ring-secondary-200;
+  }
+  
+  .card {
+    @apply bg-white rounded-2xl shadow-soft border border-gray-100 p-6 transition-all duration-200 hover:shadow-medium;
+  }
+  
+  .card-elevated {
+    @apply bg-white rounded-2xl shadow-large border border-gray-100 p-8 transition-all duration-200 hover:shadow-xl;
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent;
+  }
+  
+  .section-padding {
+    @apply py-16 px-4 sm:px-6 lg:px-8;
+  }
+  
+  .container-custom {
+    @apply max-w-7xl mx-auto;
+  }
+  
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text text-transparent;
+  }
+  
+  .text-gradient-secondary {
+    @apply bg-gradient-to-r from-secondary-600 to-secondary-800 bg-clip-text text-transparent;
+  }
+  
+  .text-gradient-accent {
+    @apply bg-gradient-to-r from-accent-600 to-accent-800 bg-clip-text text-transparent;
+  }
+  
+  .bg-pattern {
+    background-image: radial-gradient(circle at 1px 1px, rgba(13, 148, 136, 0.1) 1px, transparent 0);
+    background-size: 20px 20px;
+  }
+  
+  .bg-pattern-dots {
+    background-image: radial-gradient(circle at 2px 2px, rgba(249, 115, 22, 0.15) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+}
