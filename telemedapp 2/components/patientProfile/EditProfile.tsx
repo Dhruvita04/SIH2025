@@ -5,6 +5,7 @@ import Link from "next/link";
 import InputComponent from "@/components/auth/InputComponent";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { FaUserCircle } from "react-icons/fa";
+import { Calendar } from "primereact/calendar";
 import LightweightDatePicker from "@/components/common/LightweightDatePicker";
 import { useProfile } from "@/context/ProfileContext"; // Ensure correct import path
 

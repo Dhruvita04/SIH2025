@@ -1,10 +1,16 @@
+import bundleAnalyzer from '@next/bundle-analyzer';
+
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Enable SWC minification for better performance
   swcMinify: true,
   
   experimental: {
-    optimizePackageImports: ['react-icons', '@heroicons/react'],
+    optimizePackageImports: ['react-icons', '@heroicons/react', 'primereact'],
   },
 
   images: {
@@ -29,6 +35,15 @@ const nextConfig = {
 
   // Webpack configuration for performance
   webpack: (config, { isServer, dev }) => {
+    // Remove console logs in production
+    if (!dev && config.optimization?.minimizer?.[0]) {
+      try {
+        config.optimization.minimizer[0].options.minimizer.options.compress.drop_console = true;
+      } catch (e) {
+        // Silently fail if structure is different
+      }
+    }
+    
     if (!isServer) {
       config.resolve.fallback = {
         fs: false,
@@ -36,8 +51,41 @@ const nextConfig = {
       };
     }
 
+    // Optimize chunk splitting for better caching
+    if (!dev && !isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+            priority: 10,
+          },
+          agora: {
+            test: /[\\/]node_modules[\\/](agora)/,
+            name: 'agora',
+            chunks: 'all',
+            priority: 20,
+          },
+          primereact: {
+            test: /[\\/]node_modules[\\/](primereact|primeicons)/,
+            name: 'primereact',
+            chunks: 'all',
+            priority: 20,
+          },
+          mui: {
+            test: /[\\/]node_modules[\\/](@mui)/,
+            name: 'mui',
+            chunks: 'all',
+            priority: 20,
+          },
+        },
+      };
+    }
+
     return config;
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

@@ -403,7 +403,7 @@ function EditProfile() {
     }
 
     try {
-      token = localStorage.getItem("jwt");
+      const token = localStorage.getItem("jwt");
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_SERVER_NAME}/doctor/edit/info`,
@@ -437,21 +437,23 @@ function EditProfile() {
             <div key={field.title} className="mb-3 max-w-80">
               <p className="font-semibold">{field.title}</p>
               {field.name === "birthDate" ? (
-                 <LightweightDatePicker
-                   value={formData.birthDate ? new Date(formData.birthDate) : null}
-                   onChange={(date) => {
-                     setFormData(prev => ({ ...prev, birthDate: date ? date.toISOString().split('T')[0] : '' }));
-                     setChangedField('birthDate');
-                   }}
-                   placeholder="Select your birth date"
-                   maxDate={new Date()}
-                   className={errorMessage.birthDate ? "border-red-300 focus:border-red-500" : ""}
-                 />
-                 {errorMessage.birthDate && (
-                   <small className="text-xs mt-1 text-red-700 font-semibold">
-                     {errorMessage.birthDate}
-                   </small>
-                 )}
+                <>
+                  <LightweightDatePicker
+                    value={formData.birthDate ? new Date(formData.birthDate) : null}
+                    onChange={(date) => {
+                      setFormData(prev => ({ ...prev, birthDate: date ? date.toISOString().split('T')[0] : '' }));
+                      setChangedField('birthDate');
+                    }}
+                    placeholder="Select your birth date"
+                    maxDate={new Date()}
+                    className={errorMessage.birthDate ? "border-red-300 focus:border-red-500" : ""}
+                  />
+                  {errorMessage.birthDate && (
+                    <small className="text-xs mt-1 text-red-700 font-semibold">
+                      {errorMessage.birthDate}
+                    </small>
+                  )}
+                </>
               ) : (
                 <InputComponent
                   label=""
