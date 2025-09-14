@@ -1,63 +1,40 @@
-const pg = require('pg');
+const mongoose = require('mongoose');
+const { User, Doctor, Patient, Notification } = require('./models');
 require('dotenv').config();
-
-const { PGHOST, PGDATABASE, PGUSER, PGPORT } = process.env;
-let PGPASSWORD = process.env.PGPASSWORD;
-PGPASSWORD = decodeURIComponent(PGPASSWORD);
-
-const pool = new pg.Pool({
-    user: PGUSER,
-    host: PGHOST,
-    database: PGDATABASE,
-    password: PGPASSWORD,
-    port: PGPORT,
-    ssl: {
-        rejectUnauthorized: true,
-    },
-});
-(async () => {
-    try {
-        const client = await pool.connect();
-        console.log('Connected to the database');
-        client.release();
-    } catch (error) {
-        console.error('Database connection error', error.stack);
-    }
-})();
 
 const retrieveUser = async (email) => {
     try {
-        const result = await pool.query('SELECT * FROM users WHERE user_email = $1', [email]);
-        if (result.rows.length) {
-            console.log('User already exists', result.rows);
-            return result.rows;
+        const user = await User.findOne({ email: email.toLowerCase() });
+        if (user) {
+            console.log('User found:', user);
+            return [user]; // Return array to match original format
         }
         console.log('User not found');
         return false;
     } catch (error) {
-        console.error(error.stack);
+        console.error('Error retrieving user:', error);
         return false;
     }
 };
-const retrieveUserState = async (UserID, UserRole) => {
+
+const retrieveUserState = async (userId, userRole) => {
     try {
-        if (UserRole === 'Doctor') {
+        if (userRole === 'Doctor') {
             console.log('User is a doctor');
-            const result = await pool.query('SELECT doctor_account_state FROM doctor WHERE doctor_user_id_reference = $1', [UserID]);
-            if (result.rows.length) {
-                const state = result.rows[0].doctor_account_state;
-                return state;
+            const doctor = await Doctor.findOne({ userId: userId });
+            if (doctor) {
+                return doctor.accountState;
             }
             return 'Doctor state not found';
-        } else if (UserRole === 'Patient') {
+        } else if (userRole === 'Patient') {
             console.log('User is a patient');
-            const result = await pool.query('SELECT patient_account_state FROM patient WHERE patient_user_id_reference = $1', [UserID]);
-            if (result.rows.length) {
-                const state = result.rows[0].patient_account_state;
-                return state;
+            // For patients, we can assume they're always active unless specified otherwise
+            const patient = await Patient.findOne({ userId: userId });
+            if (patient) {
+                return 'Active'; // Patients don't have account states in the new schema
             }
             return 'Patient state not found';
-        } else if (UserRole === 'Admin') {
+        } else if (userRole === 'Admin') {
             console.log('User is an admin');
             return 'Active'; // Assuming admin accounts are always active
         } else {
@@ -65,19 +42,20 @@ const retrieveUserState = async (UserID, UserRole) => {
             return false;
         }
     } catch (error) {
-        console.error(error.stack);
+        console.error('Error retrieving user state:', error);
         return false;
     }
 };
+
 const getUnreadNotificationCount = async (userId) => {
     try {
-        const result = await pool.query(
-            'SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read = FALSE',
-            [userId]
-        );
-        return result.rows[0].count;
+        const count = await Notification.countDocuments({ 
+            userId: userId, 
+            isRead: false 
+        });
+        return count;
     } catch (error) {
-        console.error(error.stack);
+        console.error('Error counting unread notifications:', error);
         return 0; // Return 0 in case of an error
     }
 };

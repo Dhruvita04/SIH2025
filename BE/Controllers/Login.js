@@ -7,42 +7,55 @@ const login = async (req, res) => {
     const email = req.body.email;
     const password = req.body.password;
     let message = '';
+
     if (!email || !password) {
         message = 'Please fill all the fields';
-        return res.status(404).json(message);
+        return res.status(404).json({ message });
     }
-    const user = await database.retrieveUser(email);
-    if (!user) {
-        message = 'Invalid email'
-        return res.status(400).json(message);
-    }
-    console.log('User retrieved:', user);
-    
-    const match = await bcrypt.compare(password, user[0].user_password_hash);
-    console.log('Password match result:', match); 
-    if (!match) {
-        message = 'Invalid email or password'
-        return res.status(400).json(message);
-    }
-    const UserAccountState= await database.retrieveUserState(user[0].user_id, user[0].user_role) //check UserAccountState
-    console.log(UserAccountState)
-    if (UserAccountState === 'On_hold') {
-        const message = 'Account has not been activated yet';
-        return res.status(403).json({ message });
-    }
-    if (UserAccountState === 'Panned') {
-        const message = 'Account has been banned';
-        return res.status(403).json({ message });
-    }
-    const unreadCount = await database.getUnreadNotificationCount(user[0].user_id); 
 
-    const token = createToken(user[0].user_id, user[0].user_email, user[0].user_role, user[0].user_first_name, user[0].user_last_name);
+    // Retrieve user from MongoDB
+    const userArr = await database.retrieveUser(email);
+    if (!userArr) {
+        message = 'Invalid email';
+        return res.status(400).json({ message });
+    }
+
+    const user = userArr[0];
+    console.log('User retrieved:', user);
+
+    // Compare password with Mongo field passwordHash
+    const match = await bcrypt.compare(password, user.passwordHash);
+    console.log('Password match result:', match);
+    if (!match) {
+        message = 'Invalid email or password';
+        return res.status(400).json({ message });
+    }
+
+    // Check account state based on role
+    const userAccountState = await database.retrieveUserState(user._id, user.role);
+    console.log('User account state:', userAccountState);
+
+    // Map legacy states to new schema
+    if (user.role === 'Doctor') {
+        if (userAccountState === 'Pending') {
+            return res.status(403).json({ message: 'Account has not been activated yet' });
+        }
+        if (userAccountState === 'Suspended' || userAccountState === 'Rejected') {
+            return res.status(403).json({ message: 'Account has been banned' });
+        }
+    }
+
+    // Count unread notifications
+    const unreadCount = await database.getUnreadNotificationCount(user._id);
+
+    // Create JWT token using Mongo field names
+    const token = createToken(user._id, user.email, user.role, user.firstName, user.lastName);
     if (!token) {
         message = 'Token could not be created';
-        return res.status(400).json(message);
+        return res.status(400).json({ message });
     }
-    
-    return res.json({ message: 'Login successful', token: token, Notifications: unreadCount  });
-}
+
+    return res.json({ message: 'Login successful', token, Notifications: unreadCount });
+};
 
 module.exports = { login };

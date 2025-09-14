@@ -1,0 +1,4 @@
+# After you get your REAL MongoDB Atlas connection string, replace this line in .env:
+# MONGODB_URI=mongodb+srv://telemed_databaes_owner:8lo2xPrbJHBt@YOUR_ACTUAL_CLUSTER.xxxxx.mongodb.net/telemed_databaes?retryWrites=true&w=majority
+
+# The xxxxx part will be your actual cluster ID from MongoDB Atlas

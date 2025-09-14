@@ -1,38 +1,39 @@
-const pg = require('pg');
-
-const { PGHOST, PGDATABASE, PGUSER, PGPORT } = process.env;
-let PGPASSWORD = process.env.PGPASSWORD;
-PGPASSWORD = decodeURIComponent(PGPASSWORD);
-
-const pool = new pg.Pool({
-    user: PGUSER,
-    host: PGHOST,
-    database: PGDATABASE,
-    password: PGPASSWORD,
-    port: PGPORT,
-    ssl: {
-        rejectUnauthorized: true,
-    },
-});
-
-(async () => {
-    try {
-        const client = await pool.connect();
-        console.log('Connected to the database');
-        client.release();
-    } catch (error) {
-        console.error('Database connection error', error.stack);
-    }
-})();
-
+const mongoose = require('mongoose');
+const { Chat, Appointment } = require('./models');
 
 const addChatMessage = async (appointmentId, senderId, receiverId, message) => {
     try {
-        const result = await pool.query(
-            'INSERT INTO message (message_sender_id, message_receiver_id, message_content, message_appointment_id, message_date) VALUES ($1, $2, $3, $4, NOW()) RETURNING *',
-            [senderId, receiverId, message, appointmentId]
-        );
-        return result.rows[0];
+        // Find existing chat for this appointment
+        let chat = await Chat.findOne({ appointmentId: appointmentId });
+        
+        if (!chat) {
+            // Create new chat if it doesn't exist
+            chat = new Chat({
+                participants: [senderId, receiverId],
+                appointmentId: appointmentId,
+                messages: [],
+                lastMessage: message,
+                lastMessageTime: new Date()
+            });
+        }
+        
+        // Add the new message
+        const newMessage = {
+            senderId: senderId,
+            message: message,
+            messageType: 'text',
+            timestamp: new Date(),
+            isRead: false
+        };
+        
+        chat.messages.push(newMessage);
+        chat.lastMessage = message;
+        chat.lastMessageTime = new Date();
+        
+        const savedChat = await chat.save();
+        
+        // Return the newly added message (last message in array)
+        return savedChat.messages[savedChat.messages.length - 1];
     } catch (error) {
         console.error('Error sending message:', error);
         return false;
@@ -41,16 +42,25 @@ const addChatMessage = async (appointmentId, senderId, receiverId, message) => {
 
 const getChatMessages = async (appointmentId) => {
     try {
-        const result = await pool.query(
-            'SELECT * FROM message WHERE message_appointment_id = $1 ORDER BY message_date ASC',
-            [appointmentId]
-        );
+        const chat = await Chat.findOne({ appointmentId: appointmentId })
+            .populate('participants', 'firstName lastName email');
         
-        if (!result.rows.length) {
+        if (!chat || !chat.messages.length) {
             return [];
         }
-
-        return result.rows;
+        
+        // Convert to format similar to original
+        const messages = chat.messages.map(msg => ({
+            message_sender_id: msg.senderId,
+            message_receiver_id: chat.participants.find(p => p._id.toString() !== msg.senderId.toString())?._id,
+            message_content: msg.message,
+            message_appointment_id: appointmentId,
+            message_date: msg.timestamp,
+            message_type: msg.messageType,
+            is_read: msg.isRead
+        }));
+        
+        return messages;
     } catch (error) {
         console.error('Error retrieving chat messages:', error);
         return false;
@@ -59,11 +69,17 @@ const getChatMessages = async (appointmentId) => {
 
 const getAppointmentDoctorandPatient = async (appointmentId) => {
     try {
-        const result = await pool.query(
-            'SELECT appointment_doctor_id, appointment_patient_id FROM appointment WHERE appointment_id = $1',
-            [appointmentId]
-        );
-        return result.rows[0];
+        const appointment = await Appointment.findById(appointmentId)
+            .select('patientId doctorId');
+        
+        if (!appointment) {
+            return false;
+        }
+        
+        return {
+            appointment_doctor_id: appointment.doctorId,
+            appointment_patient_id: appointment.patientId
+        };
     } catch (error) {
         console.error('Error retrieving appointment doctor and patient:', error);
         return false;

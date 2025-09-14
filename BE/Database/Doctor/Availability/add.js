@@ -2,8 +2,8 @@ const pg = require("pg");
 require("dotenv").config();
 
 const { PGHOST, PGDATABASE, PGUSER, PGPORT } = process.env;
-let PGPASSWORD = process.env.PGPASSWORD;
-PGPASSWORD = decodeURIComponent(PGPASSWORD);
+const ENABLE_POSTGRES = process.env.ENABLE_POSTGRES === 'true';
+let PGPASSWORD = process.env.PGPASSWORD ? decodeURIComponent(process.env.PGPASSWORD) : undefined;
 
 const pool = new pg.Pool({
   user: PGUSER,
@@ -16,15 +16,17 @@ const pool = new pg.Pool({
   },
 });
 
-(async () => {
-  try {
-    const client = await pool.connect();
-    console.log("Connected to the database");
-    client.release();
-  } catch (error) {
-    console.error("Database connection error", error.stack);
-  }
-})();
+if (ENABLE_POSTGRES) {
+  (async () => {
+    try {
+      const client = await pool.connect();
+      console.log("Connected to the database");
+      client.release();
+    } catch (error) {
+      console.error("Database connection error", error.stack);
+    }
+  })();
+}
 const insertTimeslots = async (data, doctorId) => {
   try {
     const client = await pool.connect(); // Create a connection to the database pool

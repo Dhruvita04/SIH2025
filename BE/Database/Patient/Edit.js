@@ -1,75 +1,87 @@
-const pg = require('pg');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { User, Patient } = require('../models');
 require('dotenv').config();
 const saltRounds = 10;
 
-const { PGHOST, PGDATABASE, PGUSER, PGPORT } = process.env;
-let PGPASSWORD = process.env.PGPASSWORD;
-PGPASSWORD = decodeURIComponent(PGPASSWORD);
-
-const pool = new pg.Pool({
-    user: PGUSER,
-    host: PGHOST,
-    database: PGDATABASE,
-    password: PGPASSWORD,
-    port: PGPORT,
-    ssl: {
-        rejectUnauthorized: true,
-    },
-});
-
-(async () => {
+const updateInfo = async (patientUserId, patientEmail, updates) => {
     try {
-        const client = await pool.connect();
-        console.log('Connected to the database');
-        client.release();
-    } catch (error) {
-        console.error('Database connection error', error.stack);
-    }
-})();
+        // Find the user first
+        const user = await User.findOne({ 
+            _id: patientUserId, 
+            role: 'Patient', 
+            email: patientEmail 
+        });
 
-const updateInfo = async (patientId, patientEmail, updates) => {
-    try {
-        const userFields = [];
-        const userValues = [];
-        let userIndex = 1;
+        if (!user) {
+            console.log('Patient not found');
+            return false;
+        }
 
+        // Prepare user updates (exclude languages as they're handled separately)
+        const userUpdates = {};
+        const allowedUserFields = ['user_first_name', 'user_last_name', 'user_phone_number', 'user_gender', 'user_birth_date'];
+        
         for (const [key, value] of Object.entries(updates)) {
-            if (value !== undefined && value !== null && value !== '') {
-                if (key !== 'languages') {
-                    userFields.push(`${key} = $${userIndex}`);
-                    userValues.push(value);
-                    userIndex++;
+            if (value !== undefined && value !== null && value !== '' && key !== 'languages') {
+                // Map the field names to match the User schema
+                switch(key) {
+                    case 'user_first_name':
+                        userUpdates.firstName = value;
+                        break;
+                    case 'user_last_name':
+                        userUpdates.lastName = value;
+                        break;
+                    case 'user_phone_number':
+                        userUpdates.phoneNumber = value;
+                        break;
+                    case 'user_gender':
+                        userUpdates.gender = value;
+                        break;
+                    case 'user_birth_date':
+                        userUpdates.birthDate = value;
+                        break;
+                    default:
+                        if (allowedUserFields.includes(key)) {
+                            userUpdates[key] = value;
+                        }
                 }
             }
         }
 
-        if (userFields.length > 0) {
-            userValues.push(patientId, 'Patient', patientEmail);
-            const userQuery = `UPDATE users SET ${userFields.join(', ')} WHERE user_id = $${userIndex} AND user_role = $${userIndex + 1} AND user_email = $${userIndex + 2} RETURNING *`;
-            const updatedUserInfo = await pool.query(userQuery, userValues);
-    
-            if (!updatedUserInfo.rows.length) {
+        // Update user information if there are changes
+        if (Object.keys(userUpdates).length > 0) {
+            userUpdates.updatedAt = new Date();
+            const updatedUser = await User.findByIdAndUpdate(
+                patientUserId,
+                userUpdates,
+                { new: true, runValidators: true }
+            );
+
+            if (!updatedUser) {
                 console.log('Could not update user info');
             } else {
-                console.log('User info updated', updatedUserInfo.rows);
+                console.log('User info updated', updatedUser);
             }
+        } else {
+            console.log('No user info provided');
         }
 
-        console.log('No user info provided');
-
+        // Handle languages update
         if (Array.isArray(updates.languages) && updates.languages.length > 0) {
-            const validLanguages = updates.languages.filter(language => language !== '' && language !== null && language !== undefined);
+            const validLanguages = updates.languages.filter(language => 
+                language !== '' && language !== null && language !== undefined
+            );
+            
             if (validLanguages.length > 0) {
-                await pool.query('DELETE FROM languages WHERE lang_user_id = $1', [patientId]);
-                for (const language of validLanguages) {
-                    const updatedLanguage = await pool.query('INSERT INTO languages (lang_user_id, language) VALUES ($1, $2) RETURNING *', [patientId, language]);
-                    if (!updatedLanguage.rows.length) {
-                        console.log('Could not update user languages to include', language);
-                    } else {
-                        console.log('User languages updated to include', language);
-                    }
-                }
+                // For now, we'll store languages in the user's profile or extend the Patient model
+                // You can create a separate Languages collection if needed
+                await User.findByIdAndUpdate(
+                    patientUserId,
+                    { languages: validLanguages, updatedAt: new Date() },
+                    { new: true }
+                );
+                console.log('User languages updated to include', validLanguages);
             } else {
                 console.log('Invalid languages provided');
             }
@@ -77,56 +89,92 @@ const updateInfo = async (patientId, patientEmail, updates) => {
             console.log('No languages provided');
         }
 
-        const combinedQuery = `
-            SELECT 
-                u.user_id, u.user_first_name, u.user_last_name, u.user_email, u.user_gender, u.user_phone_number, u.user_birth_date,
-                array_agg(l.language) AS languages
-            FROM 
-                users u
-            LEFT JOIN 
-                languages l ON u.user_id = l.lang_user_id
-            WHERE 
-                u.user_id = $1 AND u.user_role = $2 AND u.user_email = $3
-            GROUP BY 
-                u.user_id, u.user_first_name, u.user_last_name, u.user_email, u.user_gender, u.user_phone_number, u.user_birth_date
-        `;
-        const combinedResult = await pool.query(combinedQuery, [patientId, 'Patient', patientEmail]);
+        // Return updated user info with languages
+        const updatedUser = await User.findOne({ 
+            _id: patientUserId, 
+            role: 'Patient', 
+            email: patientEmail 
+        }).select('-passwordHash'); // Exclude password from result
 
-        if (!combinedResult.rows.length) {
-            console.log('Could not update patient info');
+        if (!updatedUser) {
+            console.log('Could not retrieve updated patient info');
             return false;
         }
-        console.log('Patient info updated', combinedResult.rows);
-        return combinedResult.rows;
+
+        // Format response to match original structure
+        const formattedResult = [{
+            user_id: updatedUser._id,
+            user_first_name: updatedUser.firstName,
+            user_last_name: updatedUser.lastName,
+            user_email: updatedUser.email,
+            user_gender: updatedUser.gender,
+            user_phone_number: updatedUser.phoneNumber,
+            user_birth_date: updatedUser.birthDate,
+            languages: updatedUser.languages || []
+        }];
+
+        console.log('Patient info updated', formattedResult);
+        return formattedResult;
+
     } catch (error) {
-        console.error('Error updating patient info:', error.stack);
+        console.error('Error updating patient info:', error);
         return false;
     }
 };
 
-const updatePassword = async (patientId, patientEmail, oldPassword, newPassword) => {
+const updatePassword = async (patientUserId, patientEmail, oldPassword, newPassword) => {
     try {
-        const result = await pool.query('SELECT * FROM users WHERE user_id = $1 AND user_role = $2 AND user_email = $3', [patientId, 'Patient', patientEmail]);
-        if (result.rows.length) {
-            const isMatch = await bcrypt.compare(oldPassword, result.rows[0].user_password_hash);
-            if (isMatch) {
-                const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
-                const result = await pool.query('UPDATE users SET user_password_hash = $1 WHERE user_id = $2 AND user_role = $3 AND user_email = $4 RETURNING *', [hashedPassword, patientId, 'Patient', patientEmail]);
-                if (result.rows.length) {
-                    console.log('Patient password updated', result.rows);
-                    return result.rows;
-                }
-                console.log('Could not update patient password');
-                return false;
-            }
+        // Find the user
+        const user = await User.findOne({ 
+            _id: patientUserId, 
+            role: 'Patient', 
+            email: patientEmail 
+        });
+
+        if (!user) {
+            console.log('Patient not found');
+            return false;
+        }
+
+        // Verify old password
+        const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
+        if (!isMatch) {
             console.log('Old password does not match');
             return false;
         }
-        console.log('Patient not found');
-        return false;
-    }
-    catch (error) {
-        console.error(error.stack);
+
+        // Hash new password
+        const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+        // Update password
+        const updatedUser = await User.findByIdAndUpdate(
+            patientUserId,
+            { 
+                passwordHash: hashedPassword, 
+                updatedAt: new Date() 
+            },
+            { new: true }
+        ).select('-passwordHash'); // Exclude password from result
+
+        if (!updatedUser) {
+            console.log('Could not update patient password');
+            return false;
+        }
+
+        // Format response to match original structure
+        const formattedResult = [{
+            user_id: updatedUser._id,
+            user_first_name: updatedUser.firstName,
+            user_last_name: updatedUser.lastName,
+            user_email: updatedUser.email,
+            user_role: updatedUser.role
+        }];
+
+        console.log('Patient password updated', formattedResult);
+        return formattedResult;
+
+    } catch (error) {
+        console.error('Error updating patient password:', error);
         return false;
     }
 };

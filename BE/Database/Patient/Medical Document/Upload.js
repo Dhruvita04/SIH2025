@@ -1,46 +1,66 @@
-const pg = require('pg');
+const mongoose = require('mongoose');
+const { MedicalDocument, Patient } = require('../../models');
 require('dotenv').config();
 
-const { PGHOST, PGDATABASE, PGUSER, PGPORT } = process.env;
-let PGPASSWORD = process.env.PGPASSWORD;
-PGPASSWORD = decodeURIComponent(PGPASSWORD);
-
-const pool = new pg.Pool({
-    user: PGUSER,
-    host: PGHOST,
-    database: PGDATABASE,
-    password: PGPASSWORD,
-    port: PGPORT,
-    ssl: {
-        rejectUnauthorized: true,
-    },
-});
-
-(async () => {
-    try {
-        const client = await pool.connect();
-        console.log('Connected to the database');
-        client.release();
-    } catch (error) {
-        console.error('Database connection error', error.stack);
-    }
-})();
-
 const insertFile = async (patientId, fileName, fileType, fileData) => {
-    const query = 'INSERT INTO medical_documents (medical_documents_patient_id, medical_document_name, medical_document_type, medical_document_data) VALUES ($1, $2, $3, $4) RETURNING *';
-    const values = [patientId, fileName, fileType, fileData];
     try {
-        const result = await pool.query(query, values);
-        if (!result.rows.length) {
-            console.log('could not insert file');
+        // Get patient details
+        const patient = await Patient.findOne({ userId: patientId });
+        if (!patient) {
+            console.log('Patient not found');
             return false;
         }
-        console.log('File inserted:', result.rows);
-        return result.rows;
+
+        // Create new medical document
+        const medicalDoc = new MedicalDocument({
+            patientId: patient._id,
+            documentType: fileType,
+            title: fileName,
+            description: `Uploaded medical document: ${fileName}`,
+            fileUrl: fileData, // This should be a URL or file path
+            fileName: fileName,
+            fileSize: Buffer.byteLength(fileData || '', 'utf8'), // Approximate size
+            mimeType: getMimeType(fileType),
+            uploadDate: new Date(),
+            isActive: true
+        });
+
+        const savedDoc = await medicalDoc.save();
+
+        if (!savedDoc) {
+            console.log('Could not insert file');
+            return false;
+        }
+
+        console.log('File inserted:', savedDoc);
+        
+        // Return in format similar to original
+        return [{
+            medical_documents_id: savedDoc._id,
+            medical_documents_patient_id: patientId,
+            medical_document_name: savedDoc.fileName,
+            medical_document_type: savedDoc.documentType,
+            medical_document_data: savedDoc.fileUrl,
+            upload_date: savedDoc.uploadDate
+        }];
     } catch (error) {
-        console.error('Error inserting file:', error.stack);
+        console.error('Error inserting file:', error);
         return null;
     }
+};
+
+// Helper function to determine MIME type
+const getMimeType = (fileType) => {
+    const mimeTypes = {
+        'Lab Report': 'application/pdf',
+        'X-Ray': 'image/jpeg',
+        'MRI': 'image/dicom',
+        'CT Scan': 'image/dicom',
+        'Prescription': 'application/pdf',
+        'Medical Certificate': 'application/pdf',
+        'Other': 'application/octet-stream'
+    };
+    return mimeTypes[fileType] || 'application/octet-stream';
 };
 
 module.exports = { insertFile };

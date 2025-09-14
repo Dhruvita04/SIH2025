@@ -136,7 +136,7 @@ function SignUpForm() {
     { name: "firstName", title: "First Name", type: "text" },
     { name: "lastName", title: "Last Name", type: "text" },
     { name: "email", title: "Email", type: "email" },
-    { name: "phone", title: "Phone Number", type: "number" },
+    { name: "phone", title: "Phone Number", type: "tel" },
     { name: "password", title: "Password", type: "password" },
     { name: "confirmPassword", title: "Confirm Password", type: "password" },
     { name: "birthDate", title: "Birth Date", type: "number" },
@@ -281,7 +281,8 @@ function SignUpForm() {
   };
 
   const validatePhone = () => {
-    const phonePattern = /^-?\d+$/;
+    // Allow optional leading + and 7-15 digits total
+    const phonePattern = /^\+?\d{7,15}$/;
     let changedValidation = false;
     if (formData.phone && !phonePattern.test(formData.phone)) {
       if (errorMessage.phone === "") {
@@ -289,7 +290,7 @@ function SignUpForm() {
       }
       setErrorMessage((prevError) => ({
         ...prevError,
-        phone: "Current Phone Number Is Not valid!",
+        phone: "Phone number must be 7-15 digits, optional leading +",
       }));
     } else {
       if (errorMessage.phone !== "") {
@@ -304,7 +305,8 @@ function SignUpForm() {
   };
 
   const handleDateChange = (e: any) => {
-    const { value } = e.target;
+    // PrimeReact Calendar returns selected date on e.value
+    const value = e?.value ?? null;
     setFormData((prevForm) => ({
       ...prevForm,
       birthDate: value,
@@ -560,11 +562,17 @@ function SignUpForm() {
     e.preventDefault();
     setLoading(true);
 
-    if (!formValid) return;
-
-    // const endpoint = userType === "Patient"
-    //   ? `${process.env.NEXT_PUBLIC_SERVER_NAME}/patient/register`
-    //   : `${process.env.NEXT_PUBLIC_SERVER_NAME}/doctor/register`;
+    if (!formValid) {
+      console.warn("Signup form invalid; aborting submit", { formData, errorMessage });
+      setLoading(false);
+      return;
+    }
+    const API_BASE =
+      process.env.NEXT_PUBLIC_SERVER_NAME || "http://localhost:4000";
+    const endpoint =
+      userType === "Patient"
+        ? `${API_BASE}/patient/register`
+        : `${API_BASE}/doctor/register`;
 
     const payload =
       userType === "Patient"
@@ -601,49 +609,83 @@ function SignUpForm() {
             Languages: [],
           };
 
-    // try {
-    // const response = await fetch(endpoint, {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify(payload),
-    //   mode: "cors",
-    // });
+    try {
+      console.log("Submitting signup to:", endpoint, "payload:", payload);
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        mode: "cors",
+      });
 
-    // if (!response.ok) {
-    //   setSignedUp(false);
-    //   setError(true);
-    //   setLoading(false);
-    //   throw new Error("Failed to register");
-    // }
-    setTimeout(async () => {
-      // Static token and user data
-      const users = {
-        token: "staticToken123",
-        tokenExpiryDate: "2024-12-31T23:59:59Z",
-        userRole: "Patient",
-        id: "user123",
-        firstName: "Test",
-        lastName: "Test",
-      };
-      const responseData = payload;
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        throw new Error(
+          `Failed to register (${response.status}) ${errText || ""}`.trim()
+        );
+      }
 
-      localStorage.setItem("registeredUser", JSON.stringify(responseData));
-      localStorage.setItem("userRole", userType);
-      localStorage.setItem("jwt", users.token);
-      localStorage.setItem("expiryDate", users.tokenExpiryDate);
-      localStorage.setItem("userId", users.id);
-      localStorage.setItem("firstName", users.firstName);
-      localStorage.setItem("lastName", users.lastName);
+      const data = await response.json();
+      console.log("Signup success:", data);
+
+      // Persist minimal info for logged-in experience if needed
+      if (userType === "Patient" && data?.patient) {
+        const p = data.patient;
+        localStorage.setItem(
+          "registeredUser",
+          JSON.stringify({
+            firstName: p.user_first_name,
+            lastName: p.user_last_name,
+            email: p.user_email,
+            phone: p.user_phone_number,
+            gender: p.user_gender,
+            birthDate: p.user_birth_date,
+            id: p.user_id,
+          })
+        );
+      }
 
       setError(false);
       setSignedUp(true);
       setLoading(false);
       router.replace("/");
-      //   } catch (error) {
-      //     console.error("Error During Signup:", error);
-      //     setLoading(false);
-      //   }
-    }, 2000); // Simulate loading delay
+    } catch (error: any) {
+      console.error("Error During Signup:", error?.message || error);
+      setSignedUp(false);
+      setError(true);
+      setLoading(false);
+    }
+  };
+
+  // Dev-only quick test to verify endpoint wiring without form validation
+  const devQuickTest = async () => {
+    const API_BASE = process.env.NEXT_PUBLIC_SERVER_NAME || "http://localhost:4000";
+    const endpoint = `${API_BASE}/patient/register`;
+    const payload = {
+      fName: "Dev",
+      lName: "Tester",
+      email: `patient_auto_${Date.now()}@test.com`,
+      password: "test@123!",
+      gender: "Male",
+      phone: "+521234567890",
+      birthDate: "1994-03-28",
+    };
+    try {
+      console.log("[DEV] Quick test POST →", endpoint, payload);
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        mode: "cors",
+      });
+      const text = await res.text();
+      console.log("[DEV] Quick test response:", res.status, text);
+      if (!res.ok) alert(`Quick test failed: ${res.status} ${text}`);
+      else alert(`Quick test OK: ${text}`);
+    } catch (err: any) {
+      console.error("[DEV] Quick test error:", err?.message || err);
+      alert(`Quick test error: ${err?.message || err}`);
+    }
   };
 
   const patientImageClass = `w-20 h-20 border-2 border-solid rounded-full ${
@@ -703,7 +745,7 @@ function SignUpForm() {
                       dateFormat="yy-mm-dd"
                       placeholder="Select your birth date (yyyy-mm-dd)"
                       maxDate={new Date()}
-                      yearRange="1900:2023"
+                      yearRange={`1900:${new Date().getFullYear()}`}
                       className={`bg-neutral-100 w-full py-4 px-6 text-base rounded-lg border border-solid border-neutral-300 grey-100 outline-none transition-[border-color] focus:border-sky-500 focus:bg-neutral-50 ${
                         errorMessage.birthDate ? "p-invalid" : ""
                       }`}
@@ -1102,6 +1144,32 @@ function SignUpForm() {
         >
           {loading ? "Loading..." : "Register"}
         </button>
+        {process.env.NODE_ENV !== 'production' && (
+          <button
+            type="button"
+            onClick={devQuickTest}
+            className="w-full mb-6 py-3 rounded-lg bg-neutral-200 text-neutral-800 hover:bg-neutral-300"
+          >
+            DEV: Quick POST to /patient/register
+          </button>
+        )}
+        {process.env.NODE_ENV !== 'production' && (
+          <details className="mb-10">
+            <summary className="cursor-pointer text-sm text-neutral-600">Debug (dev only)</summary>
+            <pre className="text-xs bg-neutral-100 p-2 rounded overflow-x-auto">
+{JSON.stringify({ formValid, loading, errorMessage, filled: {
+  firstName: !!formData.firstName,
+  lastName: !!formData.lastName,
+  email: !!formData.email,
+  password: !!formData.password,
+  confirmPassword: !!formData.confirmPassword,
+  phone: !!formData.phone,
+  birthDate: !!formData.birthDate,
+  gender: !!formData.gender,
+}}, null, 2)}
+            </pre>
+          </details>
+        )}
       </form>
     </div>
   );

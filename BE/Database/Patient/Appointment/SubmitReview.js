@@ -1,96 +1,85 @@
-const pg = require('pg');
+const mongoose = require('mongoose');
+const { Appointment, Doctor } = require('../../models');
 require('dotenv').config();
-
-const { PGHOST, PGDATABASE, PGUSER, PGPORT } = process.env;
-let PGPASSWORD = process.env.PGPASSWORD;
-PGPASSWORD = decodeURIComponent(PGPASSWORD);
-
-const pool = new pg.Pool({
-    user: PGUSER,
-    host: PGHOST,
-    database: PGDATABASE,
-    password: PGPASSWORD,
-    port: PGPORT,
-    ssl: {
-        rejectUnauthorized: true,
-    },
-});
-
-(async () => {
-    try {
-        const client = await pool.connect();
-        console.log('Connected to the database');
-        client.release();
-    } catch (error) {
-        console.error('Database connection error', error.stack);
-    }
-})();
 
 const SubmitReview = async (appointment_id, communication_rating, understanding_rating, providing_solution_rating, commitment_rating) => {
   try {
-    console.log(appointment_id, communication_rating, understanding_rating, providing_solution_rating, commitment_rating )
+    console.log(appointment_id, communication_rating, understanding_rating, providing_solution_rating, commitment_rating);
 
-    // Insert the Review into the database
-    const result = await pool.query(
-      `INSERT INTO appointment_review (
-        appointment_review_appointment_id,
-        appointment_review_communication_rating,
-        appointment_review_understanding_rating,
-        appointment_review_providing_solutions_rating,
-        appointment_review_commitment_rating
+    // Calculate average rating
+    const totalRating = (
+      parseFloat(communication_rating) + 
+      parseFloat(understanding_rating) + 
+      parseFloat(providing_solution_rating) + 
+      parseFloat(commitment_rating)
+    ) / 4;
 
-      ) VALUES ($1, $2, $3, $4, $5) RETURNING appointment_review_id`,
-      [appointment_id, communication_rating, understanding_rating, providing_solution_rating, commitment_rating]
+    // Update the appointment with the review
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      appointment_id,
+      {
+        rating: Math.round(totalRating * 10) / 10, // Round to 1 decimal place
+        review: `Communication: ${communication_rating}, Understanding: ${understanding_rating}, Solutions: ${providing_solution_rating}, Commitment: ${commitment_rating}`
+      },
+      { new: true }
     );
-    console.log(result.rows[0]);
-    return result.rows[0];
-  } catch (error) {
-    console.error(error);
-    throw error;
+
+    if (!updatedAppointment) {
+      throw new Error('Appointment not found');
     }
-  };
-  const RetrieveDoctorRating = async (doctorID) => {
-    try {
-  const result = await pool.query(
-    `SELECT
-    doctor_rating,review_count
-     FROM
-     doctor
-     WHERE
-     doctor_user_id_reference = $1`,
-  [doctorID]
-);
 
-if (result.rows.length === 0 || result.rows[0].review_count === 0) {
-    return null; 
+    console.log('Review submitted:', updatedAppointment);
+    return {
+      appointment_review_id: updatedAppointment._id,
+      rating: updatedAppointment.rating
+    };
+  } catch (error) {
+    console.error('Error submitting review:', error);
+    throw error;
   }
-
-  return result.rows[0];
-} catch (error) {
-  console.error('Error retrieving doctor rating:', error);
-  throw error; 
-}
 };
 
-const NewDoctorRating = async (doctorID,newRating, newReview_Count) => {
-    try {
-      console.log(doctorID, newRating)
-  
-      // Insert the Rating into the database
-      const result = await pool.query(
-        `UPDATE doctor
-        SET doctor_rating = $1, review_count=$2
-        WHERE doctor_user_id_reference= $3
-        RETURNING doctor_rating`, 
-        [newRating, newReview_Count,doctorID] 
-      );
-  
-      return result.rows[0].appointment_id;
-    } catch (error) {
-      console.error(error);
-      throw error;
-      }
-    };
+const RetrieveDoctorRating = async (doctorID) => {
+  try {
+    const doctor = await Doctor.findOne({ userId: doctorID });
+    
+    if (!doctor || doctor.totalReviews === 0) {
+      return null;
+    }
 
-  
-  module.exports = { SubmitReview, RetrieveDoctorRating, NewDoctorRating};
+    return {
+      doctor_rating: doctor.rating,
+      review_count: doctor.totalReviews
+    };
+  } catch (error) {
+    console.error('Error retrieving doctor rating:', error);
+    throw error;
+  }
+};
+
+const NewDoctorRating = async (doctorID, newRating, newReview_Count) => {
+  try {
+    console.log(doctorID, newRating);
+
+    // Update the doctor's rating and review count
+    const updatedDoctor = await Doctor.findOneAndUpdate(
+      { userId: doctorID },
+      {
+        rating: newRating,
+        totalReviews: newReview_Count
+      },
+      { new: true }
+    );
+
+    if (!updatedDoctor) {
+      throw new Error('Doctor not found');
+    }
+
+    return updatedDoctor.rating;
+  } catch (error) {
+    console.error('Error updating doctor rating:', error);
+    throw error;
+  }
+};
+
+module.exports = { SubmitReview, RetrieveDoctorRating, NewDoctorRating };

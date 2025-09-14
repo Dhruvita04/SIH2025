@@ -1,70 +1,56 @@
-const pg = require('pg');
+const mongoose = require('mongoose');
+const { Doctor, Appointment } = require('../../models');
 require('dotenv').config();
-
-const { PGHOST, PGDATABASE, PGUSER, PGPORT } = process.env;
-let PGPASSWORD = process.env.PGPASSWORD;
-PGPASSWORD = decodeURIComponent(PGPASSWORD);
-
-const pool = new pg.Pool({
-    user: PGUSER,
-    host: PGHOST,
-    database: PGDATABASE,
-    password: PGPASSWORD,
-    port: PGPORT,
-    ssl: {
-        rejectUnauthorized: true,
-    },
-});
-
-(async () => {
-    try {
-        const client = await pool.connect();
-        console.log('Connected to the database');
-        client.release();
-    } catch (error) {
-        console.error('Database connection error', error.stack);
-    }
-})();
-
-
 
 const getDoctorTimeslots = async (doctorId) => {
     try {
-      const result = await pool.query(
-        `SELECT timeslot_code, timeslot_type
-         FROM timeslots WHERE timeslot_doctor_id = $1`,
-        [doctorId]
-      );
-  
-      const timeslotCodes = result.rows.map(row => `${row.timeslot_code}_${row.timeslot_type}`);
+      // Get doctor's availability from the doctor document
+      const doctor = await Doctor.findOne({ userId: doctorId });
+      
+      if (!doctor || !doctor.availability || doctor.availability.length === 0) {
+        return '';
+      }
+
+      // Convert doctor availability to timeslot format
+      const timeslotCodes = doctor.availability
+        .filter(slot => slot.isAvailable)
+        .map(slot => {
+          // Generate timeslot codes based on day and time
+          const dayCode = slot.day.substring(0, 3).toUpperCase(); // MON, TUE, etc.
+          const timeCode = slot.startTime.replace(':', ''); // 0900, 1400, etc.
+          return `${dayCode}_${timeCode}_O`; // O for Online, add S for Onsite if needed
+        });
+      
       return timeslotCodes.join(',');
     } catch (error) {
-      console.error(error);
-      return [];
+      console.error('Error getting doctor timeslots:', error);
+      return '';
     }
-  };
-  
-  const getDoctorAvailabilityDetails = async (doctorId) => {
+};
+
+const getDoctorAvailabilityDetails = async (doctorId) => {
     try {
-        // Retrieve doctor availability
-        const availabilityResult = await pool.query(
-          `SELECT 
-          appointment_id AS doctor_availability_id,
-          appointment_date AS doctor_availability_day_hour
-           FROM appointment
-           WHERE appointment_doctor_id = $1
-           AND appointment_status IN ('Approved', 'Pending')`,
-          [doctorId]
-        );
-    
-        const doctorAvailability = availabilityResult.rows;
-        const availableSlots = doctorAvailability.map(slot => slot.doctor_availability_day_hour);
-    
+        // Get existing appointments for this doctor
+        const appointments = await Appointment.find({
+          doctorId: doctorId,
+          status: { $in: ['Confirmed', 'Scheduled'] } // Equivalent to 'Approved', 'Pending'
+        }).select('appointmentDate appointmentTime');
+
+        // Convert to the format expected by the frontend
+        const availableSlots = appointments.map(appointment => {
+          // Combine date and time into a single datetime string
+          const dateTime = new Date(appointment.appointmentDate);
+          const timeString = appointment.appointmentTime || '09:00';
+          
+          // Format: "YYYY-MM-DD HH:MM:SS"
+          return `${dateTime.toISOString().split('T')[0]} ${timeString}:00`;
+        });
+
         return availableSlots;
-      } catch (error) {
-        console.error(error);
+    } catch (error) {
+        console.error('Error getting doctor availability:', error);
         return [];
-      }
-    };
-    
-module.exports = { getDoctorAvailabilityDetails,getDoctorTimeslots};
+    }
+};
+
+module.exports = { getDoctorAvailabilityDetails, getDoctorTimeslots };

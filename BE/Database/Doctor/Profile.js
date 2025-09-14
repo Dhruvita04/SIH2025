@@ -1,54 +1,36 @@
-const pg = require('pg');
-require('dotenv').config();
-
-const { PGHOST, PGDATABASE, PGUSER, PGPORT } = process.env;
-let PGPASSWORD = process.env.PGPASSWORD;
-PGPASSWORD = decodeURIComponent(PGPASSWORD);
-
-const pool = new pg.Pool({
-    user: PGUSER,
-    host: PGHOST,
-    database: PGDATABASE,
-    password: PGPASSWORD,
-    port: PGPORT,
-    ssl: {
-        rejectUnauthorized: true,
-    },
-});
-
-(async () => {
-    try {
-        const client = await pool.connect();
-        console.log('Connected to the database');
-        client.release();
-    } catch (error) {
-        console.error('Database connection error', error.stack);
-    }
-})();
+const { User, Doctor, Patient, Appointment } = require('../models');
+const mongoose = require('mongoose');
 
 
 const retrieveDoctorInfo = async (id, email) => {
     try {
-      const query = `            
-      SELECT 
-          u.user_id, u.user_first_name, u.user_last_name, u.user_email, u.user_gender, u.user_phone_number, u.user_birth_date,
-          d.doctor_country, d.doctor_sixty_min_price, d.doctor_thirty_min_price, d.doctor_specialization, d.doctor_rating, d.review_count, doctor_image,
-          array_agg(l.language) AS languages
-      FROM 
-          users u
-      JOIN 
-          doctor d ON u.user_id = d.doctor_user_id_reference
-      LEFT JOIN 
-          languages l ON u.user_id = l.lang_user_id
-      WHERE 
-          u.user_id = $1 AND u.user_role = $2 AND u.user_email = $3
-      GROUP BY 
-          u.user_id, d.doctor_country, d.doctor_sixty_min_price, d.doctor_thirty_min_price, d.doctor_specialization, doctor_image, d.doctor_rating, d.review_count`;
+        const doctorUser = await User.findOne({ 
+            _id: id, 
+            email: email, 
+            role: 'Doctor' 
+        }).populate('doctorProfile');
 
-    const result = await pool.query(query, [id, 'Doctor', email]);
-        if (result.rows.length) {
-            console.log('Doctor info found', result.rows);
-            return result.rows;
+        if (doctorUser && doctorUser.doctorProfile) {
+            const doctorInfo = {
+                user_id: doctorUser._id,
+                user_first_name: doctorUser.firstName,
+                user_last_name: doctorUser.lastName,
+                user_email: doctorUser.email,
+                user_gender: doctorUser.gender,
+                user_phone_number: doctorUser.phoneNumber,
+                user_birth_date: doctorUser.birthDate,
+                doctor_country: doctorUser.doctorProfile.country,
+                doctor_sixty_min_price: doctorUser.doctorProfile.sixtyMinPrice,
+                doctor_thirty_min_price: doctorUser.doctorProfile.thirtyMinPrice,
+                doctor_specialization: doctorUser.doctorProfile.specialization,
+                doctor_rating: doctorUser.doctorProfile.rating,
+                review_count: doctorUser.doctorProfile.reviewCount,
+                doctor_image: doctorUser.doctorProfile.image,
+                languages: doctorUser.languages || []
+            };
+
+            console.log('Doctor info found', [doctorInfo]);
+            return [doctorInfo];
         }
 
         console.log('Doctor info not found');

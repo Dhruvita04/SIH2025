@@ -1,3 +1,5 @@
+// Ensure env is loaded regardless of where server is started
+require("dotenv").config({ path: require("path").join(__dirname, "../../.env") });
 const database = require("../../Database/Doctor/Register");
 const { passwordValidation } = require("../../Utilities");
 const bcrypt = require("bcryptjs");
@@ -41,12 +43,14 @@ const doctorRegister = async (req, res) => {
   personalInfo.lastName =
     personalInfo.lastName[0].toUpperCase() +
     personalInfo.lastName.slice(1).toLowerCase();
+  // Normalize gender to match schema enum
+  const normalizedGender = typeof personalInfo.gender === "string" ? (personalInfo.gender[0].toUpperCase() + personalInfo.gender.slice(1).toLowerCase()) : personalInfo.gender;
   const user = {
     fName: personalInfo.firstName,
     lName: personalInfo.lastName,
     email: personalInfo.email,
     phone: personalInfo.phone,
-    gender: personalInfo.gender,
+    gender: normalizedGender,
     role: "Doctor",
     password: hashedPassword,
     birthDate: personalInfo.birthdate,
@@ -54,7 +58,8 @@ const doctorRegister = async (req, res) => {
     country: personalInfo.country,
     city: personalInfo.city,
     location: personalInfo.location,
-    state: "On_hold",
+    // Map legacy 'On_hold' to valid enum 'Pending'
+    state: "Pending",
   };
   const doctor = await database.insertDoctor(user);
   console.log(doctor);
@@ -63,19 +68,19 @@ const doctorRegister = async (req, res) => {
     try {
       const added_certificates = await database.saveDoctorcertificates(
         certificates,
-        doctor.user_id
+        doctor.doctor_id
       );
       const added_experiences = await database.saveDoctorexperiences(
         experiences,
-        doctor.user_id
+        doctor.doctor_id
       );
       const added_interests = await database.saveDoctorinterests(
         interests,
-        doctor.user_id
+        doctor.doctor_id
       );
       const added_Languages = await database.saveDoctorlanguage(
         Languages,
-        doctor.user_id
+        doctor.doctor_id
       );
       return res.json({
         message: message,

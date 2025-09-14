@@ -1,3 +1,5 @@
+// Ensure environment variables are loaded regardless of where Node is started
+require("dotenv").config({ path: require("path").join(__dirname, ".env") });
 const express = require("express");
 const cors = require("cors");
 const userLoginRoute = require("./Routes/Login");
@@ -34,6 +36,11 @@ const emailRoute = require("./Routes/Email");
 
 const chatRoute = require("./Routes/Chat");
 const { globalErrorHanlder } = require("./Utilities");
+const connectDB = require("./Database/config/mongoConnection");
+
+// Connect to MongoDB
+connectDB();
+
 const port = process.env.PORT || 4000;
 const app = express();
 

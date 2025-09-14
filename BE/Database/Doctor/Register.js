@@ -1,245 +1,226 @@
-const pg = require("pg");
-require("dotenv").config();
-
-const { PGHOST, PGDATABASE, PGUSER, PGPORT } = process.env;
-let PGPASSWORD = process.env.PGPASSWORD;
-PGPASSWORD = decodeURIComponent(PGPASSWORD);
-
-const pool = new pg.Pool({
-  user: PGUSER,
-  host: PGHOST,
-  database: PGDATABASE,
-  password: PGPASSWORD,
-  port: PGPORT,
-  ssl: {
-    rejectUnauthorized: true,
-  },
-});
-
-(async () => {
-  try {
-    const client = await pool.connect();
-    console.log("Connected to the database");
-    client.release();
-  } catch (error) {
-    console.error("Database connection error", error.stack);
-  }
-})();
+const mongoose = require('mongoose');
+const { User, Doctor } = require('../models');
+require('dotenv').config();
 
 const checkUserEmail = async (email) => {
   try {
-    const result = await pool.query(
-      "SELECT * FROM users WHERE user_email = $1 AND user_role = $2",
-      [email, "Doctor"]
-    );
-    if (result.rows.length) {
-      console.log("User already exists", result.rows);
-      return result.rows;
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (user) {
+      console.log('User already exists', user);
+      return true;
     }
-    console.log("No user found");
     return false;
   } catch (error) {
-    console.error(error.stack);
+    console.error('Error checking user email:', error);
     return false;
   }
 };
 
-const insertDoctor = async (user) => {
+const insertDoctor = async (userData) => {
+  let session = null;
+  let useTxn = false;
+  
   try {
-    await pool.query("BEGIN");
-    const userResult = await pool.query(
-      `INSERT INTO users
-            (user_first_name,
-            user_last_name, 
-            user_email, 
-            user_phone_number, 
-            user_gender, user_role, 
-            user_password_hash, 
-            user_birth_date)
-            VALUES
-            ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [
-        user.fName,
-        user.lName,
-        user.email,
-        user.phone,
-        user.gender,
-        user.role,
-        user.password,
-        user.birthDate,
-      ]
-    );
-    if (!userResult.rows.length) {
-      console.log("User not added");
-      await pool.query("ROLLBACK");
+    try {
+      session = await mongoose.startSession();
+      session.startTransaction();
+      useTxn = true;
+    } catch (e) {
+      console.warn('Transactions not available, proceeding without them:', e.message);
+    }
+    
+    // Create user first
+    const user = new User({
+      firstName: userData.fName,
+      lastName: userData.lName,
+      email: userData.email.toLowerCase(),
+      phoneNumber: userData.phone,
+      gender: userData.gender,
+      role: userData.role,
+      passwordHash: userData.password,
+      birthDate: userData.birthDate
+    });
+    
+  const savedUser = useTxn && session ? await user.save({ session }) : await user.save();
+    
+    if (!savedUser) {
+      console.log('User not added');
+      await session.abortTransaction();
       return false;
     }
-    const userId = userResult.rows[0].user_id;
-    const doctorsResult = await pool.query(
-      `INSERT INTO doctor
-            (doctor_user_id_reference,
-            doctor_specialization,
-            doctor_country,
-            doctor_city,
-            doctor_clinic_location,
-            doctor_account_state)
-            VALUES($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [
-        userId,
-        user.speciality,
-        user.country,
-        user.city,
-        user.location,
-        user.state,
-      ]
-    );
-    if (!doctorsResult.rows.length) {
-      console.log("Doctor not added");
-      await pool.query("ROLLBACK");
+    
+    // Create doctor profile
+    const doctor = new Doctor({
+      userId: savedUser._id,
+      specialization: userData.speciality || 'General Medicine',
+      qualification: userData.qualification || 'MBBS',
+      experience: userData.experience || 1,
+      licenseNumber: userData.licenseNumber || `LIC-${Date.now()}-${savedUser._id.toString().slice(-6)}`,
+      consultationFee: userData.consultationFee || 500,
+      accountState: userData.state || 'Pending',
+      bio: userData.bio || '',
+      country: userData.country || '',
+      city: userData.city || '',
+      location: userData.location || '',
+      certificates: Array.isArray(userData.certificates) ? userData.certificates.map(c => ({
+        name: c.name || '',
+        authority: c.authority || '',
+        startDate: c.startDate ? new Date(c.startDate) : undefined,
+        endDate: c.endDate ? new Date(c.endDate) : undefined,
+      })) : [],
+      experiences: Array.isArray(userData.experiences) ? userData.experiences.map(ex => ({
+        title: ex.title || '',
+        firm: ex.firm || '',
+        department: ex.department || '',
+        startDate: ex.startDate ? new Date(ex.startDate) : undefined,
+        endDate: ex.endDate ? new Date(ex.endDate) : undefined,
+      })) : [],
+      interests: Array.isArray(userData.interests) ? userData.interests.map(i => ({
+        name: i.name || '',
+        category: i.category || '',
+      })) : [],
+      languages: Array.isArray(userData.languages) ? userData.languages : []
+    });
+    
+    const savedDoctor = useTxn && session ? await doctor.save({ session }) : await doctor.save();
+    
+    if (!savedDoctor) {
+      console.log('Doctor not added');
+      await session.abortTransaction();
       return false;
     }
-    await pool.query("COMMIT");
-    const combinedResult = await pool.query(
-      `SELECT 
-            u.user_id, 
-            u.user_first_name, 
-            u.user_last_name, 
-            u.user_email, 
-            u.user_phone_number, 
-            u.user_gender, 
-            u.user_role, 
-            u.user_birth_date,
-            d.doctor_user_id_reference,
-            d.doctor_specialization,
-            d.doctor_country,
-            d.doctor_city,
-            d.doctor_clinic_location,
-            d.doctor_account_state 
-            FROM 
-                users u
-            JOIN 
-                doctor d ON u.user_id = d.doctor_user_id_reference
-            WHERE 
-                u.user_id = $1`,
-      [userId]
-    );
-    if (combinedResult.rows.length) {
-      console.log(
-        "User and doctor info retrieved successfully",
-        combinedResult.rows
-      );
-      return combinedResult.rows[0];
+    
+  if (useTxn && session) await session.commitTransaction();
+    
+    // Return combined user and doctor info
+    const populatedDoctor = await Doctor.findById(savedDoctor._id)
+      .populate('userId')
+      .session(null);
+    
+    if (populatedDoctor) {
+      console.log('User and doctor info retrieved successfully', populatedDoctor);
+      return {
+        doctor_id: populatedDoctor._id,
+        user_id: populatedDoctor.userId._id,
+        user_first_name: populatedDoctor.userId.firstName,
+        user_last_name: populatedDoctor.userId.lastName,
+        user_email: populatedDoctor.userId.email,
+        user_phone_number: populatedDoctor.userId.phoneNumber,
+        user_gender: populatedDoctor.userId.gender,
+        user_role: populatedDoctor.userId.role,
+        user_birth_date: populatedDoctor.userId.birthDate,
+        doctor_user_id_reference: populatedDoctor.userId._id,
+        doctor_specialization: populatedDoctor.specialization,
+        doctor_account_state: populatedDoctor.accountState
+      };
     }
-    console.log("Combined user and doctor info not found");
+    
+    console.log('Combined user and doctor info not found');
     return false;
+    
   } catch (error) {
-    await pool.query("ROLLBACK");
-    console.error("Error inserting doctor:", error.stack);
+    if (useTxn && session && session.inTransaction()) {
+      try { await session.abortTransaction(); } catch (_) {}
+    }
+    console.error('Error inserting doctor:', error);
+    console.error('Error details:', error.message);
+    if (error.errors) {
+      console.error('Validation errors:', error.errors);
+    }
     return false;
+  } finally {
+    if (session) session.endSession();
   }
 };
+
+// Note: The following functions are currently not implemented in the new schema
+// but can be added if needed by extending the Doctor model
+
 const saveDoctorcertificates = async (certificates, doctorId) => {
   try {
-    for (let i = 0; i < certificates.length; i++) {
-      const data = certificates[i];
-      const result = await pool.query(
-        `INSERT INTO doctor_education
-          (education_doctor_id,
-           education_certificate,
-           education_authority,
-           education_start_date,
-           education_end_data)
-          VALUES
-          ($1, $2, $3, $4, $5)  RETURNING *`,
-        [doctorId, data.name, data.authority, data.startDate, data.endDate]
-      );
-      if (!result.rows.length) {
-        console.log(`Error inserting Certificates ${data.name}`);
-      }
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      console.log('Doctor not found');
+      return false;
     }
-    return true;
+    
+    if (Array.isArray(certificates)) {
+      doctor.certificates = certificates.map(cert => ({
+        name: cert.name || '',
+        authority: cert.authority || '',
+        startDate: cert.startDate ? new Date(cert.startDate) : undefined,
+        endDate: cert.endDate ? new Date(cert.endDate) : undefined
+      }));
+      await doctor.save();
+      return true;
+    }
+    return false;
   } catch (error) {
-    await pool.query("ROLLBACK");
-    console.error("Error inserting Certificates:", error.stack);
+    console.error('Error inserting Certificates:', error);
     return false;
   }
 };
+
 const saveDoctorexperiences = async (experiences, doctorId) => {
   try {
-    for (let i = 0; i < experiences.length; i++) {
-      const data = experiences[i];
-      const result = await pool.query(
-        `INSERT INTO doctor_experience
-          (doctor_experience_doctor_id,
-           doctor_experience_job_title,
-           doctor_experience_firm_name,
-           doctor_experience_department,
-           doctor_experience_start_date,
-           doctor_experience_end_date)
-          VALUES
-          ($1, $2, $3, $4, $5, $6)  RETURNING *`,
-        [
-          doctorId,
-          data.title,
-          data.firm,
-          data.department,
-          data.startDate,
-          data.endDate,
-        ]
-    );
-    if (!result.rows.length) {
-      console.log(`Error inserting Experiences ${data.name}`);
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      console.log('Doctor not found');
+      return false;
     }
-  }
-  return true;
+    
+    if (Array.isArray(experiences)) {
+      doctor.experiences = experiences.map(exp => ({
+        title: exp.title || '',
+        firm: exp.firm || '',
+        department: exp.department || '',
+        startDate: exp.startDate ? new Date(exp.startDate) : undefined,
+        endDate: exp.endDate ? new Date(exp.endDate) : undefined
+      }));
+      await doctor.save();
+      return true;
+    }
+    return false;
   } catch (error) {
-    await pool.query("ROLLBACK");
-    console.error("Error inserting Experiences:", error.stack);
+    console.error('Error inserting Experiences:', error);
     return false;
   }
 };
 
 const saveDoctorinterests = async (interests, doctorId) => {
   try {
-    for (let i = 0; i < interests.length; i++) {
-      const data = interests[i];
-      const result = await pool.query(
-        `INSERT INTO doctor_interest
-          (doctor_interest_doctor_id,
-           doctor_interest_name,
-           doctor_interest_category)
-          VALUES ($1, $2, $3)  RETURNING *`,
-        [doctorId, data.name, data.category]
-    );
-    if (!result.rows.length) {
-      console.log(`Error inserting Interests ${data.name}`);
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      console.log('Doctor not found');
+      return false;
     }
-  }
-  return true;
+    if (Array.isArray(interests)) {
+      doctor.interests = interests.map(i => ({ name: i.name || '', category: i.category || '' }));
+      await doctor.save();
+      return true;
+    }
+    return false;
   } catch (error) {
-    await pool.query("ROLLBACK");
-    console.error("Error inserting Interests:", error.stack);
+    console.error('Error inserting Interests:', error);
     return false;
   }
 };
-const saveDoctorlanguage = async (language, doctorId) => {
+
+const saveDoctorlanguage = async (languages, doctorId) => {
   try {
-    for (let i = 0; i < language.length; i++) {
-      const data = language[i];
-      const result = await pool.query(
-        `INSERT INTO languages
-            (lang_user_id, language)
-            VALUES ($1, $2)  RETURNING *`,
-        [doctorId, data]
-    );
-    if (!result.rows.length) {
-      console.log(`Error inserting Language ${data.name}`);
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor) {
+      console.log('Doctor not found');
+      return false;
     }
-  }
-  return true;
+    if (Array.isArray(languages)) {
+      doctor.languages = languages.map(l => String(l));
+      await doctor.save();
+      return true;
+    }
+    return false;
   } catch (error) {
-    await pool.query("ROLLBACK");
-    console.error("Error inserting Language:", error.stack);
+    console.error('Error inserting Language:', error);
     return false;
   }
 };
