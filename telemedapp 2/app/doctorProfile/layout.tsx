@@ -70,6 +70,16 @@ export default function ProfileLayout({
               >
                 Pending Requests
               </Link>
+              <Link
+                href="/doctorProfile/healthRecords"
+                className={`${
+                  pathname === "/doctorProfile/healthRecords"
+                    ? "text-blue-500 font-bold "
+                    : "font-bold"
+                } `}
+              >
+                Health Records
+              </Link>
             </div>
             <div className="flex">
               <hr
@@ -77,21 +87,28 @@ export default function ProfileLayout({
                   pathname === "/doctorProfile"
                     ? "bg-blue-500"
                     : "bg-neutral-800"
-                } border-none h-0.5 w-1/3`}
+                } border-none h-0.5 w-1/4`}
               />
               <hr
                 className={`${
                   pathname === "/doctorProfile/timeSlots"
                     ? "bg-blue-500"
                     : "bg-neutral-800"
-                } border-none h-0.5 w-1/3`}
+                } border-none h-0.5 w-1/4`}
               />
               <hr
                 className={`${
                   pathname === "/doctorProfile/requests"
                     ? "bg-blue-500"
                     : "bg-neutral-800"
-                } border-none h-0.5 w-1/3`}
+                } border-none h-0.5 w-1/4`}
+              />
+              <hr
+                className={`${
+                  pathname === "/doctorProfile/healthRecords"
+                    ? "bg-blue-500"
+                    : "bg-neutral-800"
+                } border-none h-0.5 w-1/4`}
               />
             </div>
             <main>{children}</main>

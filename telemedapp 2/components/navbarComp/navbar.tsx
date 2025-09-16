@@ -8,6 +8,7 @@ import { IoMenu } from "react-icons/io5";
 import { FaUserCircle } from "react-icons/fa";
 import { usePathname, useRouter } from "next/navigation";
 import { HiOutlineHeart, HiOutlineDocumentText, HiOutlineUserGroup, HiOutlineMagnifyingGlass } from "react-icons/hi2";
+import { useRoleAuth } from '../../hooks/useRoleAuth';
 
 const menuIcon = (
   <div className="p-2 rounded-lg hover:bg-gradient-to-r hover:from-primary-50 hover:to-accent-50 transition-all duration-200">
@@ -21,41 +22,18 @@ const signedInIcon = (
 );
 
 const Navbar = () => {
-  const [token, setToken] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const { userRole, isAuthenticated, refreshAuth } = useRoleAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   const handleSignOut = () => {
     localStorage.clear();
-    setToken(null);
-    setUserRole(null);
+    refreshAuth(); // Refresh auth state
     router.push("/auth/signin");
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedToken = localStorage.getItem("jwt") || null;
-      const storedRole = localStorage.getItem("userRole") || null;
-
-      if (storedToken) {
-        setToken(storedToken);
-        setUserRole(storedRole);
-      } else {
-        setToken(null);
-        setUserRole(null);
-      }
-
-      const expiryDate = localStorage.getItem("expiryDate") || null;
-      if (
-        expiryDate &&
-        Math.floor(new Date().getTime() / 1000) > Number(expiryDate)
-      ) {
-        localStorage.clear();
-        setToken(null);
-        setUserRole(null);
-      }
-    }
+    // No need to manually check token since useRoleAuth handles this
   }, [pathname !== "/"]);
 
   return (
@@ -82,7 +60,14 @@ const Navbar = () => {
             </button>
             <button
               className="flex items-center space-x-2 px-4 py-2 rounded-lg text-gray-600 hover:text-primary-600 hover:bg-gradient-to-r hover:from-primary-50 hover:to-primary-100 transition-all duration-200 font-medium"
-              onClick={() => router.push("/health-records")}
+              onClick={() => {
+                // Route based on user role
+                if (userRole === 'Doctor') {
+                  router.push("/doctorProfile/healthRecords");
+                } else {
+                  router.push("/patientProfile/healthRecords");
+                }
+              }}
             >
               <HiOutlineDocumentText className="w-4 h-4" />
               <span>Health Records</span>
@@ -105,7 +90,7 @@ const Navbar = () => {
 
           {/* Right Side (Sign in / Sign up or Profile Menu) */}
           <div className="flex items-center space-x-3">
-            {!token ? (
+            {!isAuthenticated ? (
               <>
                 <Link href="/auth/signin">
                   <button className="hidden lg:inline-block btn-outline text-sm">
@@ -168,7 +153,12 @@ const Navbar = () => {
             {/* Mobile Menu */}
             <div className="lg:hidden">
               <MenuList
-                linkTo={["/pharmacy", "/health-records", "/doctors", "/symptom-checker"]}
+                linkTo={[
+                  "/pharmacy", 
+                  userRole === 'Doctor' ? "/doctorProfile/healthRecords" : "/patientProfile/healthRecords", 
+                  "/doctors", 
+                  "/symptom-checker"
+                ]}
                 linkName={[
                   "Pharmacy",
                   "Health Records",

@@ -35,13 +35,27 @@ const login = async (req, res) => {
     const userAccountState = await database.retrieveUserState(user._id, user.role);
     console.log('User account state:', userAccountState);
 
-    // Map legacy states to new schema
+    // Auto-approve doctors who are in pending state
+    if (user.role === 'Doctor' && userAccountState === 'Pending') {
+        console.log('Auto-approving doctor account:', user.email);
+        // Update the doctor's state to Approved
+        await database.updateDoctorState(user._id, 'Approved');
+        console.log('Doctor account auto-approved:', user.email);
+    }
+
+    // Check final account state after potential auto-approval
+    const finalAccountState = user.role === 'Doctor' && userAccountState === 'Pending' 
+        ? 'Approved' 
+        : userAccountState;
+
+    // Enforce account state rules
     if (user.role === 'Doctor') {
-        if (userAccountState === 'Pending') {
-            return res.status(403).json({ message: 'Account has not been activated yet' });
-        }
-        if (userAccountState === 'Suspended' || userAccountState === 'Rejected') {
+        if (finalAccountState === 'Suspended' || finalAccountState === 'Rejected') {
             return res.status(403).json({ message: 'Account has been banned' });
+        }
+        // Pending state should now be handled by auto-approval above
+        if (finalAccountState === 'Pending') {
+            return res.status(403).json({ message: 'Account activation failed. Please contact support.' });
         }
     }
 

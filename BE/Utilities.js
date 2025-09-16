@@ -1,8 +1,12 @@
 const { query } = require("express");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
-const { ACCESS_TOKEN_EXPIRATION_IN_DAYS, ACCESS_TOKEN_SECRET_KEY } =
-  process.env;
+// Prefer ACCESS_TOKEN_SECRET_KEY; fallback to JWT_SECRET for compatibility with existing envs
+const ACCESS_TOKEN_SECRET_KEY =
+  process.env.ACCESS_TOKEN_SECRET_KEY || process.env.JWT_SECRET;
+// Expiration can be like '7d'. Fallback to 7 days if not provided
+const ACCESS_TOKEN_EXPIRATION_IN_DAYS =
+  process.env.ACCESS_TOKEN_EXPIRATION_IN_DAYS || process.env.JWT_EXPIRY || '7d';
 
 const passwordValidation = (str) => {
   const hasNumbers = /\d/.test(str);

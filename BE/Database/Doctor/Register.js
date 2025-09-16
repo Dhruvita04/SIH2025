@@ -145,12 +145,30 @@ const saveDoctorcertificates = async (certificates, doctorId) => {
     }
     
     if (Array.isArray(certificates)) {
-      doctor.certificates = certificates.map(cert => ({
-        name: cert.name || '',
-        authority: cert.authority || '',
-        startDate: cert.startDate ? new Date(cert.startDate) : undefined,
-        endDate: cert.endDate ? new Date(cert.endDate) : undefined
-      }));
+      doctor.certificates = certificates.map(cert => {
+        const certificate = {
+          name: cert.name || '',
+          authority: cert.authority || ''
+        };
+        
+        // Only add startDate if it's a valid date
+        if (cert.startDate && cert.startDate.trim() !== '') {
+          const startDate = new Date(cert.startDate);
+          if (!isNaN(startDate.getTime())) {
+            certificate.startDate = startDate;
+          }
+        }
+        
+        // Only add endDate if it's a valid date
+        if (cert.endDate && cert.endDate.trim() !== '') {
+          const endDate = new Date(cert.endDate);
+          if (!isNaN(endDate.getTime())) {
+            certificate.endDate = endDate;
+          }
+        }
+        
+        return certificate;
+      });
       await doctor.save();
       return true;
     }
@@ -170,13 +188,31 @@ const saveDoctorexperiences = async (experiences, doctorId) => {
     }
     
     if (Array.isArray(experiences)) {
-      doctor.experiences = experiences.map(exp => ({
-        title: exp.title || '',
-        firm: exp.firm || '',
-        department: exp.department || '',
-        startDate: exp.startDate ? new Date(exp.startDate) : undefined,
-        endDate: exp.endDate ? new Date(exp.endDate) : undefined
-      }));
+      doctor.experiences = experiences.map(exp => {
+        const experience = {
+          title: exp.title || '',
+          firm: exp.firm || '',
+          department: exp.department || ''
+        };
+        
+        // Only add startDate if it's a valid date
+        if (exp.startDate && exp.startDate.trim() !== '') {
+          const startDate = new Date(exp.startDate);
+          if (!isNaN(startDate.getTime())) {
+            experience.startDate = startDate;
+          }
+        }
+        
+        // Only add endDate if it's a valid date
+        if (exp.endDate && exp.endDate.trim() !== '') {
+          const endDate = new Date(exp.endDate);
+          if (!isNaN(endDate.getTime())) {
+            experience.endDate = endDate;
+          }
+        }
+        
+        return experience;
+      });
       await doctor.save();
       return true;
     }

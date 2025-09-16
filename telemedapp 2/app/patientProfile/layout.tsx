@@ -73,6 +73,16 @@ export default function ProfileLayout({
                   Payment Info
                 </Link>
                 <Link
+                  href="/patientProfile/healthRecords"
+                  className={`${
+                    pathname === "/patientProfile/healthRecords"
+                      ? "text-blue-500 font-bold "
+                      : "font-bold"
+                  }`}
+                >
+                  Health Records
+                </Link>
+                <Link
                   href="/patientProfile/patientDocuments"
                   className={`${
                     pathname === "/patientProfile/patientDocuments"
@@ -89,21 +99,28 @@ export default function ProfileLayout({
                     pathname === "/patientProfile"
                       ? "bg-blue-500"
                       : "bg-neutral-800"
-                  } border-none h-0.5 w-1/3`}
+                  } border-none h-0.5 w-1/4`}
                 />
                 <hr
                   className={`${
                     pathname === "/patientProfile/paymentInfo"
                       ? "bg-blue-500"
                       : "bg-neutral-800"
-                  } border-none h-0.5 w-1/3`}
+                  } border-none h-0.5 w-1/4`}
+                />
+                <hr
+                  className={`${
+                    pathname === "/patientProfile/healthRecords"
+                      ? "bg-blue-500"
+                      : "bg-neutral-800"
+                  } border-none h-0.5 w-1/4`}
                 />
                 <hr
                   className={`${
                     pathname === "/patientProfile/patientDocuments"
                       ? "bg-blue-500"
                       : "bg-neutral-800"
-                  } border-none h-0.5 w-1/3`}
+                  } border-none h-0.5 w-1/4`}
                 />
               </div>
               <main>{children}</main>

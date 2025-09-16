@@ -1,0 +1,48 @@
+{
+  "common": {
+    "appTitle": "TelemedPilot",
+    "signIn": "Sign in",
+    "signUp": "Sign Up",
+    "patient": "Patient",
+    "doctor": "Doctor",
+    "loading": "Loading...",
+    "register": "Register",
+    "male": "Male",
+    "female": "Female",
+    "debug": "Debug (dev only)",
+    "devQuickPost": "DEV: Quick POST to /patient/register"
+  },
+  "auth": {
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "Email",
+    "phone": "Phone Number",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "birthDate": "Birth Date",
+    "enterFirstName": "Enter First Name",
+    "enterLastName": "Enter Last Name",
+    "enterEmail": "Enter Email",
+    "enterPhone": "+91 XXXX XXX XXX",
+    "enterPassword": "Enter Password",
+    "enterConfirmPassword": "Enter Confirm Password",
+    "selectBirthDate": "Select your birth date (yyyy-mm-dd)",
+    "gender": "Gender",
+    "alreadyHaveAccount": "Already have an account?",
+    "phoneHelp": "Please Enter A Valid Phone Number",
+    "emailInvalid": "Email Is Invalid",
+    "firstNameOnlyChars": "First Name Must Consist Of Only Characters",
+    "lastNameOnlyChars": "Last Name Must Consist Of Only Characters",
+    "passwordRules": "Password Must Contain 8+ Characters Including Atleast 1 Number, 1 Character, 1 Symbol",
+    "passwordsDontMatch": "Passwords Don't Match",
+    "birthDateRequired": "Birth Date is required.",
+    "ageRequirement": "You must be at least 13 years old.",
+    "signupSuccess": "Signed up successfully!",
+    "emailAlreadyRegistered": "This Email Is Already Registered!"
+  },
+  "locale": {
+    "language": "Language",
+    "english": "English",
+    "hindi": "Hindi"
+  }
+}

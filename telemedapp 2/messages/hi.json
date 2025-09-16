@@ -1,0 +1,48 @@
+{
+  "common": {
+    "appTitle": "टेलीमेडपायलट",
+    "signIn": "साइन इन",
+    "signUp": "साइन अप",
+    "patient": "रोगी",
+    "doctor": "डॉक्टर",
+    "loading": "लोड हो रहा है...",
+    "register": "पंजीकरण करें",
+    "male": "पुरुष",
+    "female": "महिला",
+    "debug": "डिबग (केवल डेवलपर)",
+    "devQuickPost": "डेव: /patient/register पर क्विक POST"
+  },
+  "auth": {
+    "firstName": "पहला नाम",
+    "lastName": "अंतिम नाम",
+    "email": "ईमेल",
+    "phone": "फोन नंबर",
+    "password": "पासवर्ड",
+    "confirmPassword": "पासवर्ड की पुष्टि करें",
+    "birthDate": "जन्म तिथि",
+    "enterFirstName": "पहला नाम दर्ज करें",
+    "enterLastName": "अंतिम नाम दर्ज करें",
+    "enterEmail": "ईमेल दर्ज करें",
+    "enterPhone": "+91 XXXX XXX XXX",
+    "enterPassword": "पासवर्ड दर्ज करें",
+    "enterConfirmPassword": "पासवर्ड की पुष्टि करें",
+    "selectBirthDate": "अपनी जन्म तिथि चुनें (yyyy-mm-dd)",
+    "gender": "लिंग",
+    "alreadyHaveAccount": "क्या आपका पहले से खाता है?",
+    "phoneHelp": "कृपया मान्य फोन नंबर दर्ज करें",
+    "emailInvalid": "ईमेल अमान्य है",
+    "firstNameOnlyChars": "पहला नाम केवल अक्षरों से बना होना चाहिए",
+    "lastNameOnlyChars": "अंतिम नाम केवल अक्षरों से बना होना चाहिए",
+    "passwordRules": "पासवर्ड में 8+ अक्षर होने चाहिए जिनमें कम से कम 1 संख्या, 1 अक्षर, 1 प्रतीक शामिल हो",
+    "passwordsDontMatch": "पासवर्ड मेल नहीं खाते",
+    "birthDateRequired": "जन्म तिथि आवश्यक है।",
+    "ageRequirement": "आपकी आयु कम से कम 13 वर्ष होनी चाहिए।",
+    "signupSuccess": "सफलतापूर्वक साइन अप हो गया!",
+    "emailAlreadyRegistered": "यह ईमेल पहले से पंजीकृत है!"
+  },
+  "locale": {
+    "language": "भाषा",
+    "english": "अंग्रेज़ी",
+    "hindi": "हिंदी"
+  }
+}

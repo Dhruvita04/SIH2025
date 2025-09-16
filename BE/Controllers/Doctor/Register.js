@@ -58,8 +58,8 @@ const doctorRegister = async (req, res) => {
     country: personalInfo.country,
     city: personalInfo.city,
     location: personalInfo.location,
-    // Map legacy 'On_hold' to valid enum 'Pending'
-    state: "Pending",
+    // Auto-approve new doctor registrations
+    state: "Approved",
   };
   const doctor = await database.insertDoctor(user);
   console.log(doctor);

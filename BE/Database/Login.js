@@ -60,4 +60,24 @@ const getUnreadNotificationCount = async (userId) => {
     }
 };
 
-module.exports = { retrieveUser, retrieveUserState, getUnreadNotificationCount };
+const updateDoctorState = async (userId, newState) => {
+    try {
+        const result = await Doctor.updateOne(
+            { userId: userId },
+            { accountState: newState }
+        );
+        
+        if (result.modifiedCount > 0) {
+            console.log(`Doctor state updated to ${newState} for userId: ${userId}`);
+            return true;
+        } else {
+            console.log(`No doctor found with userId: ${userId} or state was already ${newState}`);
+            return false;
+        }
+    } catch (error) {
+        console.error('Error updating doctor state:', error);
+        return false;
+    }
+};
+
+module.exports = { retrieveUser, retrieveUserState, getUnreadNotificationCount, updateDoctorState };

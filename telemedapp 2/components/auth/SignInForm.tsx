@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import InputComponent from "./InputComponent";
-import jwt from "jsonwebtoken";
 import { useRouter } from "next/navigation";
+import { getBackendURL, validateAuthResponse, getUserFromToken } from "../../utils/jwt";
+import { useRoleAuth } from "../../hooks/useRoleAuth";
 
 function SignInForm() {
   const router = useRouter();
+  const { login } = useRoleAuth();
   const [formValid, setFormValid] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string>("");
   const [signedIn, setSignedIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -20,41 +22,6 @@ function SignInForm() {
   useEffect(() => {
     validateForm();
   }, [formData]);
-
-  const ACCESS_TOKEN_SECRET_KEY = `${process.env.NEXT_PUBLIC_ACCESS_TOKEN_SECRET_KEY}`;
-
-  const tokenAuthentication = (req: any) => {
-    const token = req.token;
-
-    let message = "";
-    if (token) {
-      jwt.verify(
-        token,
-        ACCESS_TOKEN_SECRET_KEY,
-        (err: any, decodedToken: any) => {
-          if (err) {
-            message = "Invalid token";
-            console.log(message);
-            return false;
-          }
-          console.log(decodedToken);
-          req.id = decodedToken.id;
-          req.email = decodedToken.email;
-          req.userRole = decodedToken.role;
-          req.firstName = decodedToken.firstName;
-          req.lastName = decodedToken.lastName;
-          req.tokenExpiryDate = decodedToken.exp;
-
-          return true;
-        },
-      );
-    } else {
-      message = "No token found";
-      console.log(message);
-      return false;
-    }
-    return true;
-  };
 
   const submitButtonClass = [
     "bg-sky-500 text-neutral-50 text-lg	p-3.5	w-full border-none rounded-lg cursor-pointer transition-[background-color]",
@@ -138,47 +105,74 @@ function SignInForm() {
     e.preventDefault();
     setLoading(true);
     if (!formValid) {
+      setLoading(false);
       return;
     }
 
     try {
-      setTimeout(async () => {
-        // Static token and user data
-        const token = "staticToken123";
-        const users = {
-          token: "staticToken123",
-          tokenExpiryDate: "2024-12-31T23:59:59Z",
-          userRole: "Patient",
-          id: "user123",
-          firstName: "Mahmoud",
-          lastName: "Mohamed",
-        };
+      console.log('Attempting to signin with backend...');
+      
+      // Call the real backend API
+      const backendURL = getBackendURL();
+      const response = await fetch(`${backendURL}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
-        if (!users.token) {
-          console.log("error in response");
-          setLoading(false);
-          setSignedIn(false);
-          setError(true);
-          throw new Error("Failed To Sign In");
-        }
+      console.log('Response status:', response.status);
 
-        if (tokenAuthentication(users)) {
-          localStorage.setItem("jwt", users.token);
-          localStorage.setItem("expiryDate", users.tokenExpiryDate);
-          localStorage.setItem("userRole", users.userRole);
-          localStorage.setItem("userId", users.id);
-          localStorage.setItem("firstName", users.firstName);
-          localStorage.setItem("lastName", users.lastName);
-          setLoading(false);
-          setError(false);
-          setSignedIn(true);
-          router.replace("/");
-        } else {
-          console.log("Error During Token Authentication");
-        }
-      }, 2000); // Simulate loading delay
-    } catch (error) {
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.log('Login error:', errorData);
+        throw new Error(errorData.message || "Invalid credentials");
+      }
+
+      const data = await response.json();
+      console.log("Signin success:", data);
+
+      // Validate and extract user info from JWT token
+      const authData = validateAuthResponse(data);
+      const { token, userInfo } = authData;
+
+      console.log('User info from token:', userInfo);
+
+      // Use the login function from useRoleAuth hook
+      const expiryTime = new Date((userInfo.exp * 1000) - 60000).toISOString();
+      login(userInfo.role, token, userInfo.id, expiryTime);
+      
+      setLoading(false);
+      setError("");
+      setSignedIn(true);
+      
+      // The login function handles the redirect, no need to do it here
+      
+    } catch (error: any) {
       console.error("Error During Sign In:", error);
+      setLoading(false);
+      setSignedIn(false);
+      
+      // Set specific error message
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      if (error.message) {
+        if (error.message.includes("Account has not been activated yet")) {
+          errorMessage = "Your account is being processed. This usually takes a few moments. Please try signing in again.";
+        } else if (error.message.includes("Account has been banned")) {
+          errorMessage = "Your account has been suspended. Please contact support for assistance.";
+        } else if (error.message.includes("Invalid email or password")) {
+          errorMessage = "Incorrect email or password. Please check your credentials and try again.";
+        } else if (error.message.includes("Invalid email")) {
+          errorMessage = "No account found with this email address.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      setError(errorMessage);
     }
   };
 
@@ -256,9 +250,16 @@ function SignInForm() {
 
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <p className="text-sm text-red-700">
-                  Incorrect email or password. Please try again.
-                </p>
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-red-700">{error}</p>
+                  </div>
+                </div>
               </div>
             )}
             

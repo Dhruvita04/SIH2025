@@ -60,19 +60,29 @@ export const ProfileProvider = ({
       localStorage.clear();
       router.push("/auth/signin");
     } else if (storedProfile) {
-      const parsedProfile =
-        userRole === "Patient"
-          ? JSON.parse(storedProfile)
-          : JSON.parse(storedProfile).personalInfo;
-      setProfileData({
-        firstName: parsedProfile.fName || parsedProfile.firstName || "",
-        lastName: parsedProfile.lName || parsedProfile.lastName || "",
-        phone: parsedProfile.phone || "",
-        email: parsedProfile.email || "",
-        gender: parsedProfile.gender || "",
-        birthDate: parsedProfile.birthDate || "",
-        languages: parsedProfile.languages || "Punjabi, Hindi, English",
-      });
+      try {
+        const parsedProfile =
+          userRole === "Patient"
+            ? JSON.parse(storedProfile)
+            : JSON.parse(storedProfile).personalInfo;
+        
+        // Safely access properties with fallbacks
+        if (parsedProfile) {
+          setProfileData({
+            firstName: parsedProfile.fName || parsedProfile.firstName || "",
+            lastName: parsedProfile.lName || parsedProfile.lastName || "",
+            phone: parsedProfile.phone || "",
+            email: parsedProfile.email || "",
+            gender: parsedProfile.gender || "",
+            birthDate: parsedProfile.birthDate || "",
+            languages: parsedProfile.languages || "Punjabi, Hindi, English",
+          });
+        }
+      } catch (error) {
+        console.error('Error parsing stored profile:', error);
+        // Clear invalid stored data
+        localStorage.removeItem('registeredUser');
+      }
     }
     setLoading(false);
   }, [pathname, router]);

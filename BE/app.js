@@ -30,6 +30,7 @@ const doctorAppointmentResultsAddRoute = require("./Routes/Doctor/AppointmentRes
 const doctorAppointmentHistoryRoute = require("./Routes/Doctor/AppointmentHistory");
 const doctorAppointmentDetailsRoute = require("./Routes/Doctor/AppointmentDetails");
 const doctorPatientsummaryRoute = require("./Routes/Doctor/Patientsummary");
+const doctorPatientRecordsRoute = require("./Routes/Doctor/PatientRecords");
 const doctorAvailabilityRoute = require("./Routes/Doctor/Availability");
 const notificationsRoute = require("./Routes/notifications");
 const emailRoute = require("./Routes/Email");
@@ -82,6 +83,7 @@ app.use("/doctor/AppointmentResults", doctorAppointmentResultsAddRoute);
 app.use("/doctor/appointmentHistory", doctorAppointmentHistoryRoute);
 app.use("/doctor/appointmentDetails", doctorAppointmentDetailsRoute);
 app.use("/doctor/PatientSummary", doctorPatientsummaryRoute);
+app.use("/doctor/patient-records", doctorPatientRecordsRoute);
 app.use("/appointment-chat", chatRoute);
 app.use("/notifications", notificationsRoute);
 app.use("/email-service", emailRoute);

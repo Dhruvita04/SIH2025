@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Head from "next/head"; // Import the Head component
 import "./globals.css";
-import "primereact/resources/themes/lara-light-cyan/theme.css";
+import "primereact/resources/themes/lara-light-indigo/theme.css";
 import "primereact/resources/primereact.min.css";
 import "primeicons/primeicons.css";
 import Navbar from "@/components/navbarComp/navbar";
 import { ProfileProvider } from "@/context/ProfileContext";
 import { DoctorProvider } from "@/context/GetDoctorsContext";
+import IntlProvider from "@/components/i18n/IntlProvider";
+import LocaleSwitcher from "../components/i18n/LocaleSwitcher";
+import OfflineDetector from "@/components/common/OfflineDetector";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -31,12 +34,16 @@ export default function RootLayout({
         <link rel="icon" href="/logo.png" type="image/png" />
       </Head>
       <body className={inter.className}>
-        <DoctorProvider>
-          <ProfileProvider>
-            <Navbar />
-            {children}
-          </ProfileProvider>
-        </DoctorProvider>
+        <IntlProvider>
+          <DoctorProvider>
+            <ProfileProvider>
+              <OfflineDetector />
+              <Navbar />
+              <LocaleSwitcher />
+              {children}
+            </ProfileProvider>
+          </DoctorProvider>
+        </IntlProvider>
       </body>
     </html>
   );

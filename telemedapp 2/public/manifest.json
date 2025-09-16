@@ -1,0 +1,63 @@
+{
+  "name": "TeleMed Health Records",
+  "short_name": "HealthRecords",
+  "description": "Digital Health Records accessible offline for rural patients",
+  "start_url": "/patientProfile/healthRecords",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Health Records Dashboard"
+    }
+  ],
+  "categories": ["health", "medical", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Add Health Record",
+      "short_name": "Add Record",
+      "description": "Quickly add a new health record",
+      "url": "/patientProfile/healthRecords?action=add",
+      "icons": [
+        {
+          "src": "/add-icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "View Vital Signs",
+      "short_name": "Vitals",
+      "description": "Check your latest vital signs",
+      "url": "/patientProfile/healthRecords?section=vitals",
+      "icons": [
+        {
+          "src": "/vitals-icon-96x96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "lang": "en",
+  "scope": "/patientProfile/",
+  "prefer_related_applications": false
+}

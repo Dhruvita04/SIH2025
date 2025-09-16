@@ -1,6 +1,7 @@
-"use client";
+ "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import Image from "next/image";
 import patientImage from "@/images/patient.png";
@@ -9,9 +10,14 @@ import InputComponent from "./InputComponent";
 import { Calendar } from "primereact/calendar";
 import { format } from "date-fns"; // For formatting dates (optional)
 import { useRouter } from "next/navigation";
+import { getBackendURL } from "../../utils/jwt";
+import { useRoleAuth } from "../../hooks/useRoleAuth";
 
 function SignUpForm() {
+  const tCommon = useTranslations("common");
+  const tAuth = useTranslations("auth");
   const router = useRouter();
+  const { login } = useRoleAuth();
   const [loading, setLoading] = useState(false);
   const [userType, setUserType] = useState("Patient");
   const [changedField, setChangedField] = useState("");
@@ -133,13 +139,13 @@ function SignUpForm() {
   }, [userType]);
 
   const formFields = [
-    { name: "firstName", title: "First Name", type: "text" },
-    { name: "lastName", title: "Last Name", type: "text" },
-    { name: "email", title: "Email", type: "email" },
-    { name: "phone", title: "Phone Number", type: "tel" },
-    { name: "password", title: "Password", type: "password" },
-    { name: "confirmPassword", title: "Confirm Password", type: "password" },
-    { name: "birthDate", title: "Birth Date", type: "number" },
+    { name: "firstName", title: tAuth("firstName"), type: "text" },
+    { name: "lastName", title: tAuth("lastName"), type: "text" },
+    { name: "email", title: tAuth("email"), type: "email" },
+    { name: "phone", title: tAuth("phone"), type: "tel" },
+    { name: "password", title: tAuth("password"), type: "password" },
+    { name: "confirmPassword", title: tAuth("confirmPassword"), type: "password" },
+    { name: "birthDate", title: tAuth("birthDate"), type: "number" },
   ];
 
   const submitButtonClass = [
@@ -628,7 +634,22 @@ function SignUpForm() {
       const data = await response.json();
       console.log("Signup success:", data);
 
-      // Persist minimal info for logged-in experience if needed
+      // Use the login function from useRoleAuth hook with temporary token
+      const token = `auth_token_${Date.now()}_${userType.toLowerCase()}`;
+      const tokenExpiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      
+      // Determine user ID from response
+      let userId = `${userType.toLowerCase()}_${Date.now()}`;
+      if (userType === "Patient" && data?.patient) {
+        userId = data.patient.user_id || userId;
+      } else if (userType === "Doctor" && data?.doctor) {
+        userId = data.doctor.user_id || userId;
+      }
+
+      // Use login hook for consistent authentication
+      login(userType as "Patient" | "Doctor", token, userId, tokenExpiryDate);
+
+      // Store additional user data for profile use
       if (userType === "Patient" && data?.patient) {
         const p = data.patient;
         localStorage.setItem(
@@ -643,12 +664,29 @@ function SignUpForm() {
             id: p.user_id,
           })
         );
+      } else if (userType === "Doctor" && data?.doctor) {
+        const d = data.doctor;
+        localStorage.setItem(
+          "registeredUser",
+          JSON.stringify({
+            firstName: d.user_first_name,
+            lastName: d.user_last_name,
+            email: d.user_email,
+            phone: d.user_phone_number,
+            gender: d.user_gender,
+            birthDate: d.user_birth_date,
+            id: d.user_id,
+            specialization: d.specialization,
+            experience: d.experience,
+          })
+        );
       }
 
       setError(false);
       setSignedUp(true);
       setLoading(false);
-      router.replace("/");
+      
+      // The login function handles the redirect
     } catch (error: any) {
       console.error("Error During Signup:", error?.message || error);
       setSignedUp(false);
@@ -704,7 +742,7 @@ function SignUpForm() {
   return (
     <div className="p-5 rounded-xl max-w-md m-auto h-screen overflow-y-hidden hover:overflow-y-scroll">
       <h2 className="font-bold text-2xl text-center text-neutral-700 mb-6">
-        Sign Up
+        {tCommon("signUp")}
       </h2>
       <div className="flex gap-8 items-center justify-center my-2">
         <div className="flex flex-col gap-2 items-center">
@@ -714,7 +752,7 @@ function SignUpForm() {
             className={patientImageClass}
             onClick={() => setUserType(() => "Patient")}
           />
-          <p className={patientTextClass}>Patient</p>
+          <p className={patientTextClass}>{tCommon("patient")}</p>
         </div>
         <div className="flex flex-col gap-2 items-center">
           <Image
@@ -723,7 +761,7 @@ function SignUpForm() {
             className={doctorImageClass}
             onClick={() => setUserType(() => "Doctor")}
           />
-          <p className={doctorTextClass}>Doctor</p>
+          <p className={doctorTextClass}>{tCommon("doctor")}</p>
         </div>
       </div>
       <form onSubmit={handleSubmit}>
@@ -743,7 +781,7 @@ function SignUpForm() {
                       onChange={handleDateChange}
                       showIcon
                       dateFormat="yy-mm-dd"
-                      placeholder="Select your birth date (yyyy-mm-dd)"
+                      placeholder={tAuth("selectBirthDate")}
                       maxDate={new Date()}
                       yearRange={`1900:${new Date().getFullYear()}`}
                       className={`bg-neutral-100 w-full py-4 px-6 text-base rounded-lg border border-solid border-neutral-300 grey-100 outline-none transition-[border-color] focus:border-sky-500 focus:bg-neutral-50 ${
@@ -766,7 +804,17 @@ function SignUpForm() {
                   name={field.name}
                   placeholder={
                     field.name === "phone" && !formData.phone
-                      ? "+91 XXXX XXX XXX"
+                      ? tAuth("enterPhone")
+                      : field.name === "firstName"
+                      ? tAuth("enterFirstName")
+                      : field.name === "lastName"
+                      ? tAuth("enterLastName")
+                      : field.name === "email"
+                      ? tAuth("enterEmail")
+                      : field.name === "password"
+                      ? tAuth("enterPassword")
+                      : field.name === "confirmPassword"
+                      ? tAuth("enterConfirmPassword")
                       : `Enter ${field.title}`
                   }
                   value={formData[field.name as keyof typeof formData]}
@@ -777,7 +825,7 @@ function SignUpForm() {
                   required
                   additionalText={
                     field.name === "phone" && !errorMessage.phone
-                      ? "Please Enter A Valid Phone Number"
+                      ? tAuth("phoneHelp")
                       : ""
                   }
                 />
@@ -787,7 +835,7 @@ function SignUpForm() {
         })}
         <div className="mb-4">
           <label className="block text-base mb-1.5 font-semibold text-neutral-700">
-            Gender *
+            {tAuth("gender")} *
           </label>
           <div className="flex gap-8">
             <label>
@@ -800,7 +848,7 @@ function SignUpForm() {
                 checked={formData.gender === "Male"}
                 required
               />
-              Male
+              {tCommon("male")}
             </label>
             <label>
               <input
@@ -811,7 +859,7 @@ function SignUpForm() {
                 className="radio align-middle mb-[3px] mr-1"
                 checked={formData.gender === "Female"}
               />
-              Female
+              {tCommon("female")}
             </label>
           </div>
         </div>
@@ -1119,22 +1167,22 @@ function SignUpForm() {
           <></>
         )}
         <p className="mb-2">
-          Already have an account?{" "}
+          {tAuth("alreadyHaveAccount")} {" "}
           <Link
             href="/auth/signin"
             className="text-blue-500 font-semibold cursor-pointer"
           >
-            Sign in
+            {tCommon("signIn")}
           </Link>
         </p>
         {error && (
           <p className="font-semibold text-red-700 mt-4 mb-2">
-            This Email Is Already Registered!
+            {tAuth("emailAlreadyRegistered")}
           </p>
         )}
         {signedUp && (
           <p className="font-semibold text-green-700 mt-4 mb-2">
-            Signed up successfully!
+            {tAuth("signupSuccess")}
           </p>
         )}
         <button
@@ -1142,7 +1190,7 @@ function SignUpForm() {
           className={`${submitButtonClass} disabled:cursor-not-allowed disabled:opacity-50 mb-14`}
           disabled={!formValid || loading}
         >
-          {loading ? "Loading..." : "Register"}
+          {loading ? tCommon("loading") : tCommon("register")}
         </button>
         {process.env.NODE_ENV !== 'production' && (
           <button
@@ -1150,12 +1198,12 @@ function SignUpForm() {
             onClick={devQuickTest}
             className="w-full mb-6 py-3 rounded-lg bg-neutral-200 text-neutral-800 hover:bg-neutral-300"
           >
-            DEV: Quick POST to /patient/register
+            {tCommon("devQuickPost")}
           </button>
         )}
         {process.env.NODE_ENV !== 'production' && (
           <details className="mb-10">
-            <summary className="cursor-pointer text-sm text-neutral-600">Debug (dev only)</summary>
+            <summary className="cursor-pointer text-sm text-neutral-600">{tCommon("debug")}</summary>
             <pre className="text-xs bg-neutral-100 p-2 rounded overflow-x-auto">
 {JSON.stringify({ formValid, loading, errorMessage, filled: {
   firstName: !!formData.firstName,
