@@ -1,0 +1,6 @@
+export { default as DeliveryFAQ } from "./Delivery"
+export { default as DoctorConsultationFAQ } from "./DoctorConsultation"
+export { default as MedicineSubstitutesFAQ } from "./MedicineSubstitutes"
+export { default as PaymentFAQ } from "./PaymentFAQ"
+export { default as ReturnsRefundsFAQ } from "./ReturnsRefunds"
+export { default as GeneralIssuesFAQ } from "./GeneralIssues"

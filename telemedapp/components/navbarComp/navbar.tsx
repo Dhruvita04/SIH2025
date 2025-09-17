@@ -53,7 +53,7 @@ const Navbar = () => {
           <div className="hidden lg:flex items-center space-x-1">
             <button
               className="flex items-center space-x-2 px-4 py-2 rounded-lg text-gray-600 hover:text-secondary-600 hover:bg-gradient-to-r hover:from-secondary-50 hover:to-secondary-100 transition-all duration-200 font-medium"
-              onClick={() => router.push("/pharmacy")}
+              onClick={() => router.push("http://localhost:5173/")}
             >
               <HiOutlineHeart className="w-4 h-4" />
               <span>Pharmacy</span>

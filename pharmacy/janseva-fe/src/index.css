@@ -1,0 +1,112 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base {
+     :root {
+        --background: #ffffff;
+        --foreground: #1c0f00;
+        --card: #ffffff;
+        --card-foreground: #1c0f00;
+        --popover: #ffffff;
+        --popover-foreground: #1c0f00;
+        --primary: #13317b;
+        --primary-foreground: #f4f8ff;
+        --secondary: #f4f8fc;
+        --secondary-foreground: #1e1b16;
+        --muted: #f4f8fc;
+        --muted-foreground: #8d8680;
+        --accent: #f4f8fc;
+        --accent-foreground: #1e1b16;
+        --destructive: #ff3b30;
+        --destructive-foreground: #f4f8ff;
+        --border: #e6e8ea;
+        --input: #e6e8ea;
+        --ring: #1c0f00;
+        --radius: 0.5rem;
+        --chart-1: #ec7319;
+        --chart-2: #30867a;
+        --chart-3: #3d474e;
+        --chart-4: #f8a542;
+        --chart-5: #ffaa00;
+    }
+    .dark {
+        --background: #1c0f00;
+        --foreground: #f4f8ff;
+        --card: #1c0f00;
+        --card-foreground: #f4f8ff;
+        --popover: #1c0f00;
+        --popover-foreground: #f4f8ff;
+        --primary: #f4f8ff;
+        --primary-foreground: #1e1b16;
+        --secondary: #2a2f3c;
+        --secondary-foreground: #f4f8ff;
+        --muted: #2a2f3c;
+        --muted-foreground: #a6a3a0;
+        --accent: #2a2f3c;
+        --accent-foreground: #f4f8ff;
+        --destructive: #662828;
+        --destructive-foreground: #f4f8ff;
+        --border: #2a2f3c;
+        --input: #2a2f3c;
+        --ring: #d4d6db;
+        --chart-1: #3f8ddb;
+        --chart-2: #269875;
+        --chart-3: #cc853a;
+        --chart-4: #d147e2;
+        --chart-5: #d734d3;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+.chip {
+    @apply absolute -top-[70%] left-[40%] grid items-center px-[5px] py-[3px] font-sans text-xs font-bold text-white uppercase bg-red-500 rounded-lg select-none whitespace-nowrap;
+}
+
+.hero-tab {
+    @apply m-1 py-3 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none;
+}
+
+.add-to-cart-btn {
+    @apply flex gap-1 items-center p-1 hover:bg-gray-100 text-primary border-2 border-primary rounded-full hover:bg-primary hover:text-white hover:cursor-pointer;
+}
+
+.nav-for-slider .swiper-slide {
+    height: auto;
+    width: auto;
+    cursor: pointer;
+}
+
+.swiper-wrapper {
+    height: auto;
+}
+
+.nav-for-slider .swiper-slide img {
+    border: 2px solid transparent;
+    border-radius: 10px;
+}
+
+.nav-for-slider .swiper-slide-thumb-active img {
+    border-color: rgb(79 70 229);
+}
+
+@keyframes bounce {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.animate-bounce {
+    animation: bounce 1s infinite;
+}

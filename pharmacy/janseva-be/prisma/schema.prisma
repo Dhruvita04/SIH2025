@@ -1,0 +1,473 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                String              @id @default(cuid())
+  email             String              @unique
+  password          String?
+  name              String?
+  googleId          String?             @unique
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  phone             String?
+  isVerified        Boolean             @default(false)
+  role              Role                @default(USER)
+  Address           Address[]
+  cart              Cart?
+  orders            Order[]
+  Payment           Payment[]
+  prescriptions     Prescription[]
+  prescriptionOrder PrescriptionOrder[]
+  profile           UserProfile?
+}
+
+model OTP {
+  id        String   @id @default(cuid())
+  email     String
+  otp       String
+  type      OTPType
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@unique([email, type])
+}
+
+model Brand {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  logoUrl     String?
+  websiteUrl  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   String
+  updatedBy   String
+  products    Product[]
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  logoUrl     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   String
+  updatedBy   String
+  products    Product[]
+}
+
+model Product {
+  id                       String           @id @default(cuid())
+  name                     String
+  description              String?
+  images                   String[]
+  categoryId               String
+  brandId                  String
+  uses                     String?
+  direction                String?
+  sideEffects              String?
+  additionalInfo           String?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  createdBy                String
+  updatedBy                String
+  dietAndLifestyleGuidance String?
+  dosageInformation        String?
+  highlights               String?
+  howToUse                 String?
+  ingredients              String?
+  interactions             String?
+  keyUses                  String?
+  medActivity              String?
+  precaution               String?
+  routeOfAdministration    String?
+  safetyInformation        String?
+  storage                  String?
+  composition              String?
+  slug                     String           @unique @default(cuid())
+  tags                     String[]         @default([])
+  hsnCode                  String?
+  cartProducts             CartProduct[]
+  orderProducts            OrderProduct[]
+  brand                    Brand            @relation(fields: [brandId], references: [id])
+  category                 Category         @relation(fields: [categoryId], references: [id])
+  variants                 ProductVariant[]
+  batches                  ProductBatch[]
+}
+
+model ProductVariant {
+  id            String         @id @default(cuid())
+  productId     String
+  name          String
+  price         Float
+  stock         Int
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  createdBy     String
+  updatedBy     String
+  units         Int            @default(1)
+  discount      Float
+  discountType  String
+  cartProducts  CartProduct[]
+  orderProducts OrderProduct[]
+  product       Product        @relation(fields: [productId], references: [id])
+  batches                  ProductBatch[]
+}
+
+model ProductAlternative {
+  id             String   @id @default(cuid())
+  productId      String   @unique
+  imageUrl       String
+  productName    String
+  companyName    String
+  productContent String
+  price          Float
+  discount       Float
+  discountType   String
+  units          Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Cart {
+  id                  String             @id @default(cuid())
+  userId              String             @unique
+  prescriptionId      String?
+  prescriptionOrderId String?
+  isPrescriptionCart  Boolean            @default(false)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  user                User               @relation(fields: [userId], references: [id])
+  prescription        Prescription?      @relation(fields: [prescriptionId], references: [id])
+  prescriptionOrder   PrescriptionOrder? @relation(fields: [prescriptionOrderId], references: [id])
+  products            CartProduct[]
+}
+
+model CartProduct {
+  id        String         @id @default(cuid())
+  cartId    String
+  productId String
+  quantity  Int            @default(1)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  variantId String
+  cart      Cart           @relation(fields: [cartId], references: [id])
+  product   Product        @relation(fields: [productId], references: [id])
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([cartId, productId, variantId])
+}
+
+model Prescription {
+  id                String   @id @default(cuid())
+  userId            String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  patientAge        Int
+  patientBloodGroup String?
+  patientGender     String
+  patientHeight     Float?
+  patientName       String
+  patientWeight     Float?
+  prescriptionUrl   String
+  doctorName        String
+  user              User     @relation(fields: [userId], references: [id])
+  carts             Cart[]
+}
+
+model PrescriptionOrder {
+  id              String                  @id @default(cuid())
+  userId          String
+  status          PrescriptionOrderStatus @default(IN_REVIEW)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  prescriptionId  String
+  rejectionReason String?
+  user            User                    @relation(fields: [userId], references: [id])
+  carts           Cart[]
+}
+
+model Coupon {
+  id                Int        @id @default(autoincrement())
+  code              String     @unique @db.VarChar(20)
+  discountType      CouponType
+  discountValue     Decimal    @db.Decimal(10, 2)
+  maxUses           Int?       @default(0)
+  uses              Int        @default(0)
+  minPurchaseAmount Decimal?   @db.Decimal(10, 2)
+  startDate         DateTime
+  endDate           DateTime
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  userIds           Int[] // For user-specific coupons
+  productIds        Int[] // For product-specific coupons
+
+  // Relations
+  @@index([code])
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String?
+  name       String
+  phone      String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  default    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  User       User?    @relation(fields: [userId], references: [id])
+  // Removed the Order[] relation as orders now link to ShippingAddress
+}
+
+model ShippingAddress {
+  id         String   @id @default(cuid())
+  userId     String?
+  name       String
+  phone      String
+  line1      String
+  line2      String?
+  city       String
+  state      String
+  postalCode String
+  default    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  orders     Order[]
+}
+
+model Order {
+  id                String         @id @default(cuid())
+  orderId           String         @unique
+  orderNumber       BigInt         @default(autoincrement())
+  prescriptionId    String?
+  paymentId         String?
+  userId            String
+  date              DateTime       @default(now())
+  status            OrderStatus    @default(PAYMENT_PENDING)
+  shippingAddressId String         @unique
+  couponId          String?
+  subTotal          Float
+  discount          Float          // Keep existing for backward compatibility
+  couponDiscount    Float          // NEW: Specific coupon discount amount
+  shipping          Float
+  cgst              Float
+  sgst              Float
+  igst              Float
+  orderTotal        Float
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  shippingDetailsId String?
+  user              User           @relation(fields: [userId], references: [id])
+  products          OrderProduct[]
+  payment           Payment?
+  shippingAddress   ShippingAddress @relation(fields: [shippingAddressId], references: [id])
+  shippedBatches    ShippedBatch[] @relation("OrderShippedBatches")
+}
+
+
+model ShippingDetails {
+  id        String   @id @default(cuid())
+  orderId   String
+  trackingURL String?
+  trackingNumber String?
+  courierName String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OrderProduct {
+  id              String         @id @default(cuid())
+  orderId         String
+  productId       String
+  variantId       String
+  quantity        Int            @default(1)
+  originalPrice   Float          // NEW: Original price before variant discount
+  productDiscount Float          // NEW: Discount amount applied from variant
+  price           Float          // Final price after variant discount (originalPrice - productDiscount)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  order           Order          @relation(fields: [orderId], references: [id])
+  product         Product        @relation(fields: [productId], references: [id])
+  variant         ProductVariant @relation(fields: [variantId], references: [id])
+  shippedBatches    ShippedBatch[]
+}
+
+model ShippedBatch {
+  id            String       @id @default(cuid())
+  orderId       String
+  orderProductId String
+  batchNumber   String
+  expiryDate    DateTime
+  quantity      Int
+  hsnCode       String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  order         Order        @relation("OrderShippedBatches", fields: [orderId], references: [id])
+  orderProduct  OrderProduct @relation(fields: [orderProductId], references: [id])
+  
+  @@index([orderId])
+  @@index([orderProductId])
+  @@index([batchNumber])
+  @@index([expiryDate])
+  @@index([hsnCode])
+}
+
+
+model Payment {
+  id               String         @id @default(cuid())
+  orderId          String         @unique
+  userId           String
+  method           PaymentMethod
+  gateway          PaymentGateway
+  status           PaymentStatus
+  transactionId    String?        
+  gatewayOrderId   String?
+  paymentSessionId String?
+  gatewayReferenceId String? 
+  amount           Float
+  currency         String         @default("INR")
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  callbackUrl      String?
+  paymentDate      DateTime?
+  confirmationDate DateTime?
+  errorMessage     String?
+  isRefunded       Boolean        @default(false)
+  refundDate       DateTime?
+  order            Order          @relation(fields: [orderId], references: [id])
+  user             User           @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  message   String
+  type      NotificationType   @default(TRANSACTIONAL)
+  status    NotificationStatus @default(UNREAD)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+model UserProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  firstName       String
+  lastName        String
+  age             Int
+  gender          String
+  phone           String
+  profileImageUrl String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id])
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  name        String
+  phoneNumber String
+  message     String
+  createdAt   DateTime @default(now())
+}
+
+model ProductBatch {
+  id         String         @id @default(cuid())
+  productId  String
+  variantId  String
+  batchNo    String
+  expiryDate DateTime
+  
+  product    Product        @relation(fields: [productId], references: [id])
+  variant    ProductVariant @relation(fields: [variantId], references: [id])
+  
+  @@index([productId])
+  @@index([variantId])
+  @@index([batchNo])
+  @@index([expiryDate])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OTPType {
+  REGISTRATION
+  PASSWORD_RESET
+}
+
+enum PrescriptionOrderStatus {
+  IN_REVIEW
+  APPROVED
+  UPLOADED
+  REJECTED
+  ORDERED
+}
+
+enum OrderStatus {
+  PAYMENT_PENDING
+  PAYMENT_FAILED
+  PLACED
+  SHIPPED
+  IN_TRANSIT
+  DELIVERED
+  RETURNED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  UPI
+  NET_BANKING
+  CASH_ON_DELIVERY
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum CouponType {
+  PERCENTAGE
+  AMOUNT
+}
+
+enum PaymentGateway {
+  CASHFREE
+}
+
+enum NotificationType {
+  TRANSACTIONAL
+  PROMOTIONAL
+}
+
+enum NotificationStatus {
+  READ
+  UNREAD
+}
+
+// model Coupon {
+//   id        String     @id @default(cuid())
+//   code      String     @unique
+//   discount  Float
+//   type      CouponType
+//   createdAt DateTime   @default(now())
+//   updatedAt DateTime   @updatedAt
+//   orders    Order[]
+// }

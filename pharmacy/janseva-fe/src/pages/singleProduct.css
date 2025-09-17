@@ -1,0 +1,4 @@
+#productDetails ul, #productDetails ol {
+    list-style-type: disc !important;
+    margin: 0 0 1em 2em !important;
+}

@@ -45,7 +45,7 @@ const AppointmentCard = ({
         <div className="flex flex-col">
           <h2 className="text-lg font-semibold">{`Dr. ${appointment.doctor_first_name} ${appointment.doctor_last_name}`}</h2>
           <p className="text-sm text-[#035fe9]">
-            {appointment.doctor_specialization || "Specialist"}
+            {appointment.doctor_specialization || "Psychiatrist"}
           </p>
         </div>
       </div>
